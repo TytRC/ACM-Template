@@ -1,4 +1,175 @@
-\section{Trie与AC自动机}
+\section{Trie树}
+\subsection{普通模板（转自OIwiki）}
+\begin{lstlisting}
+struct trie {
+  int nex[100000][26], cnt;
+  bool exist[100000];  // 该结点结尾的字符串是否存在
+
+  void insert(char *s, int l) {  // 插入字符串
+    int p = 0;
+    for (int i = 0; i < l; i++) {
+      int c = s[i] - 'a';
+      if (!nex[p][c]) nex[p][c] = ++cnt;  // 如果没有，就添加结点
+      p = nex[p][c];
+    }
+    exist[p] = 1;
+  }
+  bool find(char *s, int l) {  // 查找字符串
+    int p = 0;
+    for (int i = 0; i < l; i++) {
+      int c = s[i] - 'a';
+      if (!nex[p][c]) return 0;
+      p = nex[p][c];
+    }
+    return exist[p];
+  }
+};
+\end{lstlisting}
+
+\subsection{维护异或和}
+\begin{lstlisting}
+namespace xorvTrie{  // 自低位到高位依次插入，支持全局加1
+    const int D = 20;
+    const int SZE = N * D;
+    int rt[N], ch[SZE][2], cnt[SZE], xorv[SZE];
+    int tot = 0;
+    void maintain(int o){
+        cnt[o] = xorv[o] = 0;
+        if(ch[o][0]){
+            cnt[o] += cnt[ch[o][0]];
+            xorv[o] ^= xorv[ch[o][0]] << 1;
+        }
+        if(ch[o][1]){
+            cnt[o] += cnt[ch[o][1]];
+            xorv[o] ^= (xorv[ch[o][1]] << 1) | (cnt[ch[o][1]] & 1);
+        }
+    }
+    int mknode(){
+        ++tot;
+        ch[tot][0] = ch[tot][1] = 0; cnt[tot] = 0;
+        return tot;
+    }
+    void insert(int &o, int x, int dep){
+        if(!o) o = mknode();
+        if(dep > D){
+            cnt[o]++;
+            return;
+        }
+        insert(ch[o][x & 1], x >> 1, dep + 1);
+        maintain(o);
+    }
+    void erase(int o, int x, int dep){
+        if(dep > D){
+            cnt[o]--;
+            return;
+        }
+        erase(ch[o][x & 1], x >> 1, dep + 1);
+        maintain(o);
+    }
+    void addall(int o){
+        swap(ch[o][0], ch[o][1]);
+        if(ch[o][0]) addall(ch[o][0]);
+        maintain(o);
+    }
+}
+\end{lstlisting}
+
+\section{AC自动机}
+\subsection{判断有几个模式串在文本串t中出现}
+\begin{lstlisting}
+const int N = 1E6 + 7;
+const int S = 26;
+int tr[N][S], ex[N], fail[N], tot;
+void insert(const char* s){
+    int u = 0;
+    for(int i = 0; s[i]; i++){
+        int v = s[i] - 'a';
+        if(!tr[u][v]) tr[u][v] = ++tot;
+        u = tr[u][v];
+    }
+    ex[u]++;
+}
+queue<int> q;
+void build(){
+    for(int i = 0; i < S; i++) if(tr[0][i]) q.push(tr[0][i]);
+    while(!q.empty()){
+        int u = q.front(); q.pop();
+        for(int i = 0; i < S; i++){
+            if(tr[u][i]){
+                fail[tr[u][i]] = tr[fail[u]][i];
+                q.push(tr[u][i]);
+            }
+            else tr[u][i] = tr[fail[u]][i];
+        }
+    }
+}
+int query(const char* t){
+    int res = 0;
+    for(int i = 0, u = 0; t[i]; i++){
+        int v = t[i] - 'a';
+        u = tr[u][v];
+        for(int j = u; j && ~ex[j]; j = fail[j]){
+            res += ex[j]; ex[j] = -1;
+        }
+    }
+    return res;
+}
+\end{lstlisting}
+
+\subsection{判断模式串在文本串出现次数}
+\begin{lstlisting}
+const int N = 1005;
+const int S = 26;
+const int L = 55;
+const int W = N * L;
+const int M = 2e6 + 7;
+
+int tr[W][S], tot, fail[W], pos[N];
+void insert(const char* s, int x){
+    int u = 0;
+    for(int i = 0; s[i]; i++){
+        int v = s[i] - 'A';
+        if(!tr[u][v]) tr[u][v] = ++tot;
+        u = tr[u][v];
+    }
+    pos[x] = u;
+}
+queue<int> q;
+vector<vector<int> > e;
+void build(){
+    for(int i = 0; i < S; i++) if(tr[0][i]) q.push(tr[0][i]);
+    while(!q.empty()){
+        int u = q.front(); q.pop();
+        e[fail[u]].push_back(u);
+        for(int i = 0; i < S; i++){
+            if(tr[u][i]){
+                fail[tr[u][i]] = tr[fail[u]][i];
+                q.push(tr[u][i]);
+            }
+            else tr[u][i] = tr[fail[u]][i];
+        }
+    }
+}
+int cnt[W];
+void query(const char* t){
+    int u = 0;
+    for(int i = 0; t[i]; i++){
+        if(t[i] < 'A' || t[i] > 'Z'){
+            u = 0; continue;  // 题目保证模式串中只含大写字母
+        }
+        u = tr[u][t[i] - 'A'];
+        cnt[u]++;
+    }
+}
+void dfs(int x){
+    for(auto v: e[x]){
+        dfs(v);
+        cnt[x] += cnt[v];
+    }
+}
+\end{lstlisting}
+
+\subsection{模板 By RainCurtain}
 \begin{lstlisting}
 struct AC{
     int tr[MAXN][26], cnt;

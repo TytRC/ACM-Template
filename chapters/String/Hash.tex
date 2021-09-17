@@ -1,0 +1,44 @@
+\section{哈希表}
+\subsection{模板 By pllj}
+\begin{lstlisting}
+const int HASH_CNT = 2;
+const int mod[HASH_CNT] = {(int)1e9 + 7, 998244353};
+const int seed[HASH_CNT] = {27, 39};
+typedef vector<int> vi;
+struct swh{
+    vector<char> s; int len = 0;
+    vector<int> pre[HASH_CNT], pw[HASH_CNT];
+    void init(){
+        s.clear();
+        s.push_back(0);
+        len = 0;
+        for(int i = 0; i < HASH_CNT; i++){
+            pre[i].push_back(0);
+            pw[i].push_back(1);
+        }
+    }
+    swh(){init();}
+    void extend(char ch){
+        s.push_back(ch); len++;
+        for(int i = 0; i < HASH_CNT; i++){
+            pw[i].push_back(1ll * pw[i].back() * seed[i] % mod[i]);
+            int t = int((1ll * pre[i].back() * seed[i] + ch) % mod[i]);
+            pre[i].push_back(t);
+        }
+    }
+    vi gethash(int l, int r){
+        vi res(HASH_CNT, 0);
+        for(int i = 0; i < HASH_CNT; i++){
+            int t = (int)((pre[i][r] - 1ll * pre[i][l - 1] * pw[i][r - l + 1]) % mod[i]);
+            if(t < 0) t += mod[i];
+            res[i] = t;
+        }
+        return res;
+    }
+};
+bool equal(const vi &a, const vi &b){
+    bool res = 1;
+    for(int i = 0; i < HASH_CNT; i++) res &= a[i] == b[i];
+    return res;
+}
+\end{lstlisting}

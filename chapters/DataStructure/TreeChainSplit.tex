@@ -1,0 +1,298 @@
+\section{树链剖分}
+\subsection{剖分一}
+已知一棵包含 $N$ 个结点的树（连通且无环），每个节点上包含一个数值，需要支持以下操作：
+\begin{enumerate}[操作1.]
+    \item \textit{1 x y z} 表示将树从 $x$ 到 $y$ 结点最短路径上所有节点的值都加上 $z$。
+    \item \textit{2 x y} 表示求树从 $x$ 到 $y$ 结点最短路径上所有节点的值之和。
+    \item \textit{3 x z} 表示将以 $x$ 为根节点的子树内所有节点值都加上 $z$。
+    \item \textit{4 x} 表示求以 $x$ 为根节点的子树内所有节点值之和。
+\end{enumerate}
+
+\begin{lstlisting}
+    #include<iostream>
+    #include<cstdio>
+    #define ls (o<<1)
+    #define rs ((o<<1)+1)
+    using namespace std;
+    const int N=1e5+7;
+    long long a[N];
+    long long p;
+    int n;
+    struct TREE{
+        int nxt,to;
+    }t[N<<1];
+    int last[N],cnt;
+    void build(int u,int v){
+        t[++cnt].to=v;
+        t[cnt].nxt=last[u];
+        last[u]=cnt;
+    }
+    int f[N],sze[N],dep[N],son[N],id[N],idx=0,top[N];long long na[N];
+    void dfs1(int fa,int u){
+        f[u]=fa;dep[u]=dep[fa]+1;sze[u]=1;
+        int ms=0;
+        int e=last[u];
+        while(e){
+            int v=t[e].to;
+            if(v!=fa){
+                dfs1(u,v);
+                sze[u]+=sze[v];
+                if(sze[v]>ms){
+                    son[u]=v;
+                    ms=sze[v];
+                }
+            }
+            e=t[e].nxt;
+        }
+    }
+    void dfs2(int x,int topf){
+        id[x]=++idx;
+        na[idx]=a[x];
+        top[x]=topf;
+        if(son[x]!=0) dfs2(son[x],topf);
+        else return;
+        int e=last[x];
+        while(e){
+            int v=t[e].to;
+            if(v!=son[x]&&v!=f[x]){
+                dfs2(v,v);
+            }
+            e=t[e].nxt;
+        }
+    }
+    long long tr[N<<2],tag[N<<2];
+    void pushup(int o){
+        tr[o]=(tr[ls]+tr[rs])%p;
+    }
+    void buildt(int o,int l,int r){
+        if(l==r){
+            tr[o]=na[l];
+            tag[o]=0;
+            return;
+        }
+        int mid=(l+r)>>1;
+        buildt(ls,l,mid);
+        buildt(rs,mid+1,r);
+        pushup(o);
+    }
+    void pushdown(int o,int l,int r){
+        int mid=(l+r)>>1;
+        tr[ls]=(tr[ls]+tag[o]*(mid-l+1))%p;
+        tr[rs]=(tr[rs]+tag[o]*(r-mid))%p;
+        tag[ls]=(tag[ls]+tag[o])%p;
+        tag[rs]=(tag[rs]+tag[o])%p;
+        tag[o]=0;
+    }
+    void update(int o,int l,int r,int cl,int cr,long long w){
+        if(l>cr||r<cl) return;
+        if(cl<=l&&r<=cr){
+            tag[o]=(tag[o]+w)%p;
+            tr[o]=(tr[o]+(r-l+1)*w)%p;
+            return;
+        }
+        pushdown(o,l,r);
+        int mid=(l+r)>>1;
+        if(cl<=mid) update(ls,l,mid,cl,cr,w);
+        if(cr>mid) update(rs,mid+1,r,cl,cr,w);
+        pushup(o);
+    }
+    long long query(int o,int l,int r,int ql,int qr){
+        if(l>qr||r<ql) return 0;
+        if(ql<=l&&r<=qr) return tr[o];
+        pushdown(o,l,r);
+        int mid=(l+r)>>1;
+        long long res=0;
+        if(ql<=mid) res+=query(ls,l,mid,ql,qr);
+        if(qr>mid) res+=query(rs,mid+1,r,ql,qr);
+        return res%p;
+    }
+    void updRange(int x,int y,long long k){
+        while(top[x]!=top[y]){
+            if(dep[top[x]]<dep[top[y]]) swap(x,y);
+            update(1,1,n,id[top[x]],id[x],k);
+            x=f[top[x]];
+        }
+        if(dep[x]>dep[y]) swap(x,y);
+        update(1,1,n,id[x],id[y],k);
+    }
+    long long qRange(int x,int y){
+        long long ans=0;
+        while(top[x]!=top[y]){
+            if(dep[top[x]]<dep[top[y]]) swap(x,y);
+            ans=(ans+query(1,1,n,id[top[x]],id[x]))%p;
+            x=f[top[x]];
+        }
+        if(dep[x]>dep[y]) swap(x,y);
+        ans=(ans+query(1,1,n,id[x],id[y]))%p;
+        return ans;
+    }
+    void updSon(int x,long long k){
+        update(1,1,n,id[x],id[x]+sze[x]-1,k);
+    }
+    long long qSon(int x){
+        return query(1,1,n,id[x],id[x]+sze[x]-1);
+    }
+    int main(){
+        int i,j,k,m,r,x,y,opt;long long z;
+        scanf("%d%d%d%d",&n,&m,&r,&p);
+        for(i=1;i<=n;i++) scanf("%lld",&a[i]);
+        for(i=1;i<n;i++){
+            scanf("%d%d",&x,&y);
+            build(x,y);build(y,x);
+        }
+        dfs1(0,r);
+        dfs2(r,r);
+        buildt(1,1,n);
+        for(i=1;i<=m;i++){
+            scanf("%d",&opt);
+            if(opt==1){
+                scanf("%d%d%lld",&x,&y,&z);
+                updRange(x,y,z);
+            }
+            else if(opt==2){
+                scanf("%d%d",&x,&y);
+                printf("%lld\n",qRange(x,y));
+            }
+            else if(opt==3){
+                scanf("%d%lld",&x,&z);
+                updSon(x,z);
+            }
+            else if(opt==4){
+                scanf("%d",&x);
+                printf("%lld\n",qSon(x));
+            }
+        }
+        return 0;
+    }
+\end{lstlisting}
+
+\subsection{剖分二}
+有一棵点数为 $N$ 的树，以点 $1$ 为根，且树点有边权。\\
+然后有 $M$ 个 操作，分为三种： 
+\begin{enumerate}[操作1.]
+    \item 把某个节点 $x$ 的点权增加 $a$
+    \item 把某个节点 $x$ 为根的子树中所有点的点权都增加 $a$ 
+    \item 询问某个节点 $x$ 到根的路径中所有点的点权和
+\end{enumerate}
+\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+#include <vector>
+#define ls (o << 1)
+#define rs ((o << 1) | 1)
+using namespace std;
+const int N = 1e5 + 7;
+vector<vector<int> > e;
+long long w[N];
+int sze[N], bc[N], dep[N], id[N], rv[N], top[N], pa[N], mk;
+struct SGT{
+    long long sum, tag;
+}t[N << 2];
+void pre(int x, int fa){
+//    cout << x << " " << fa << endl;
+    dep[x] = dep[fa] + 1;
+    sze[x] = 1;
+    pa[x] = fa;
+    for(auto v: e[x]){
+        if(v == fa) continue;
+        pre(v, x);
+        if(sze[v] > sze[bc[x]]) bc[x] = v;
+        sze[x] += sze[v];
+    }
+}
+void dfs(int x, int fa, int tp){
+//    cout << x << " " << fa << " " << tp << endl;
+    id[x] = ++mk;
+    rv[mk] = x;
+    top[x] = tp;
+    if(bc[x]) dfs(bc[x], x, tp);
+    for(auto v: e[x]){
+        if(v == fa || v == bc[x]) continue;
+        dfs(v, x, v);
+    }
+}
+void pushup(int o){
+    t[o].sum = t[ls].sum + t[rs].sum;
+}
+void pushdown(int o, int l, int r){
+    if(t[o].tag == 0) return;
+    int mid = (l + r) >> 1;
+    t[ls].sum += t[o].tag * (mid - l + 1);
+    t[rs].sum += t[o].tag * (r - mid);
+    t[ls].tag += t[o].tag;
+    t[rs].tag += t[o].tag;
+    t[o].tag = 0;
+}
+void build(int o, int l, int r){
+    if(l == r){
+        t[o].sum = w[rv[l]];
+        t[o].tag = 0;
+        return;
+    }
+    int mid = (l + r) >> 1;
+    build(ls, l, mid); build(rs, mid + 1, r);
+    pushup(o);
+}
+void update(int o, int l, int r, int ql, int qr, long long val){
+    if(ql > r || qr < l) return;
+    if(ql <= l && r <= qr){
+        t[o].sum += val * (r - l + 1);
+        t[o].tag += val;
+        return;
+    }
+    pushdown(o, l, r);
+    int mid = (l + r) >> 1;
+    if(ql <= mid) update(ls, l, mid, ql, qr, val);
+    if(qr > mid) update(rs, mid + 1, r, ql, qr, val);
+    pushup(o);
+}
+long long query(int o, int l, int r, int ql, int qr){
+    if(ql > r || qr < l) return 0;
+    if(ql <= l && r <= qr) return t[o].sum;
+    pushdown(o, l, r);
+    int mid = (l + r) >> 1;
+    long long res = 0;
+    if(ql <= mid) res += query(ls, l, mid, ql, qr);
+    if(qr > mid) res += query(rs, mid + 1, r, ql, qr);
+    pushup(o);
+    return res;
+}
+int main(){
+    int n, m, u, v, opt; long long val;
+    scanf("%d%d", &n, &m);
+    e.resize(n + 1);
+    for(int i = 1; i <= n; i++) scanf("%lld", &w[i]);
+    for(int i = 1; i < n; i++){
+        scanf("%d%d", &u, &v);
+        e[u].emplace_back(v);
+        e[v].emplace_back(u);
+    }
+    pre(1, 0);
+    dfs(1, 0, 1);
+    build(1, 1, n);
+//    for(int i = 1; i <= n; i++) cout << i << " " << top[i] << endl;
+    for(int i = 1; i <= m; i++){
+        scanf("%d", &opt);
+        if(opt == 1){
+            scanf("%d%lld", &u, &val);
+            update(1, 1, n, id[u], id[u], val);
+        }
+        else if(opt == 2){
+            scanf("%d%lld", &u, &val);
+            update(1, 1, n, id[u], id[u] + sze[u] - 1, val);
+        }
+        else if(opt == 3){
+            scanf("%d", &u);
+            long long ans = 0;
+            while(top[u] != 1){
+                ans += query(1, 1, n, id[top[u]], id[u]);
+                u = pa[top[u]];
+//                cout << u << endl;
+            }
+            ans += query(1, 1, n, id[top[u]], id[u]);
+            printf("%lld\n", ans);
+        }
+    }
+    return 0;
+}
+\end{lstlisting}

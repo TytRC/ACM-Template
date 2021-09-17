@@ -24,3 +24,68 @@ while (!q.empty()){
 }
 \end{lstlisting}\par
 如果要求字符串的循环节每次都完整出现，则需要$n\mod n-\pi[n-1]==0$。
+
+\subsection{模板 By pllj}
+\begin{lstlisting}
+const int L = 1e6 + 7;
+int nxt[L];
+void getNext(char *s){
+    int l = strlen(s + 1);
+    int j = -1;
+    nxt[0] = -1;
+    for(int i = 1; i <= l; i++){
+        while(~j && s[i] != s[j + 1]) j = nxt[j];
+        nxt[i] = ++j;
+    }
+}
+int kmp(char *s, char *t){
+    int l = strlen(s + 1), m = strlen(t + 1);
+    int res = 0; //匹配次数
+    int j = 0;
+    for(int i = 1; i <= l; i++){
+        while(~j && s[i] != t[j + 1]) j = nxt[j];
+        if(++j == m) res++;
+    }
+    return j;
+}
+\end{lstlisting}
+
+\section{拓展KMP}
+\subsection{定义}
+约定：字符串下标以 $0$ 为起点。
+
+对于个长度为 $n$ 的字符串 $s$。定义函数 $z[i]$ 表示 $s$ 和 $s[i:n-1]$（即以 $s[i]$ 开头的后缀）的最长公共前缀（LCP）的长度。$z$ 被称为 $s$ 的 \textbf{Z 函数}。特别地，$z[0] = 0$。
+
+国外一般将计算该数组的算法称为 \textbf{Z Algorithm}，而国内则称其为 \textbf{扩展 KMP}。
+
+\subsection{O(n)求 Z 函数}
+\begin{lstlisting}
+const int N = 2E7 + 7;
+int z[N * 2]; // 应该和题目有关
+void getZ(const char* s){
+    int l = 0, r = 0;
+    int len = strlen(s + 1);
+    z[1] = len;  // 根据题目要求决定
+    for(int i = 2; i <= len; i++){
+        if(i <= r) z[i] = min(z[i - l + 1], r - i + 1);
+        else z[i] = 0;
+        while(i + z[i] <= len && s[i + z[i]] == s[1 + z[i]]) z[i]++;
+        if(i + z[i] - 1 > r){
+            l = i; r = i + z[i] - 1;
+        }
+    }
+}
+\end{lstlisting}
+
+\subsection{应用}
+\begin{itemize}
+	\item 匹配所有子串
+	
+		为了避免混淆，我们将 $t$ 称作 \textbf{文本}，将 $p$ 称作 \textbf{模式}。所给出的问题是：寻找在文本 $t$ 中模式 $p$ 的所有出现。
+		
+		为了解决该问题，我们构造一个新的字符串 $s = p + \# + t$，也即我们将 $p$ 和 $t$ 连接在一起，但是在中间放置了一个分割字符 $\#$（我们将如此选取 $\#$ 使得其必定不出现在 $p$ 和 $t$ 中）。
+		
+		首先计算 $s$ 的 Z 函数。接下来，对于在区间 $[0, |t| - 1]]$ 中的任意 $i$，我们考虑以 $t[i]$ 为开头的后缀在 $s$ 中的 Z 函数值 $k=z[i + |p| + 1]$。如果 $k = |p|$，那么我们知道有一个 $p$ 的出现位于 $t$ 的第 $i$ 个位置，否则没有 $p$ 的出现位于 $t$ 的第 $i$ 个位置。
+	\item 本质不同子串数
+	\item 字符串整周期
+\end{itemize}

@@ -1,0 +1,21 @@
+\section{树状数组}
+\subsection{二维树状数组（单点修改 区间求和）}
+ \begin{lstlisting}
+long long c[N][N];
+int n, m;
+int lowbit(int x){
+    return x & -x;
+}
+void update(int x, int y, int w){
+    for(int i = x; i <= n; i += lowbit(i)){
+        for(int j = y; j <= m; j += lowbit(j)) c[i][j] += w;
+    }
+}
+long long query(int x, int y){
+    long long res = 0;
+    for(int i = x; i; i -= lowbit(i)){
+        for(int j = y; j; j -= lowbit(j)) res += c[i][j];
+    }
+    return res;
+}
+ \end{lstlisting}

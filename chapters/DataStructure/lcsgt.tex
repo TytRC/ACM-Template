@@ -51,5 +51,9 @@
 	查询过程利用了标记永久化的思想，简单地说，我们将所有包含 $x_0$ 区间（易知这样的区间只有 $O(\log n)$ 个）的最优线段拿出来，在这些线段中比较，从而得出最优线段。
 	
 	根据上面的描述，查询过程的时间复杂度显然为 $O(\log n)$，而插入过程中，我们需要将原线段分割到 $O(\log n)$ 个区间中，对于每个区间，我们又需要花费 $O(\log n)$ 的时间更新该区间以及其子区间的最优线段，从而插入过程的时间复杂度为 $O(\log^2 n)$。
-	
+\subsection{实现}
+\subsubsection{个人实现}
+	\lstinputlisting{./source/lcsgt.cpp}
+\subsubsection{oiwiki实现}
+	\lstinputlisting{./source/lcsgt-oiwiki.cpp}
 	
