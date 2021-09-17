@@ -1,0 +1,26 @@
+\section{博弈论}
+\subsection{Nim博弈}
+$n$堆物品，每堆有$a_i$个，两个玩家轮流取走任意一堆的任意个物品，但不能不取。规定取走最后一个物品的人获胜。\par
+\begin{definition}{Nim和}{nim}
+    Nim和$=a_1\oplus a_2\oplus \dots\oplus a_n$
+\end{definition}
+\begin{definition}{mex函数}{mex}
+    $mex(S)=\min\{x\}(x\notin S,x\in N)$
+\end{definition}
+\begin{definition}{SG函数}{sg}
+    对于状态$x$和它的所有$k$个后继状态$y_1,y_2,\dots,y_k$，定义SG函数：
+    $$SG(x)=mex\{SG(y_1),SG(y_2),...,SG(y_k)\}$$
+\end{definition}
+\subsection{Muti-Nim博弈}
+\begin{theorem}{SG定理}{sg}
+    游戏和的SG函数等于各个游戏SG函数的Nim和。
+\end{theorem}
+\subsection{Anti-Nim博弈}
+在Nim博弈的条件下，规定拿走最后一枚石子的人输。
+\begin{theorem}{SJ定理}{sj}
+取最后一步的玩家判输,其余规则与一般SG游戏相同。 对 于任意一个Anti-SG游戏，如果定义所有子游戏SG值为0时游戏结束，先手必胜条件：
+\begin{enumerate}
+    \item 游戏的SG值为0且所有子游戏的SG值均不超过1
+    \item 游戏的SG值不为0且至少一个子游戏的SG值超过1
+\end{enumerate}
+\end{theorem}

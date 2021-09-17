@@ -1,0 +1,194 @@
+\subsection{可持久化Trie树}
+\textbf{求点权树最大异或路径}
+\begin{lstlisting}
+/*
+   给定一棵N个点的带权树，结点下标从1开始到N。寻找树中找两个结点，求最长的异或路径。
+   异或路径指的是指两个结点之间唯一路径上的所有边权的异或。
+*/
+#include<iostream>
+#include<cstdio>
+using namespace std;
+int trie[5000000][2],cnt;
+struct TU{
+	int to,nxt,w;
+}t[200005];
+int ecnt,last[100005],ans=0;
+void add(int u,int v,int w){ t[++ecnt].to=v; t[ecnt].nxt=last[u]; t[ecnt].w=w; last[u]=ecnt; }
+void insert(int x){
+	int i,u=0,v;
+	for(i=30;i>=0;i--){
+		v=(1<<i)&x?1:0;
+		if(trie[u][v]==0) trie[u][v]=++cnt;
+		u=trie[u][v];
+	}
+}
+int query(int x){
+	int res=0,u=0,i,v;
+	for(i=30;i>=0;i--){
+		v=x&(1<<i)?0:1;
+		if(trie[u][v]){res|=1<<i; u=trie[u][v];}
+		else u=trie[u][1-v];
+	}
+	return res;
+}
+void dfs(int fa,int u,int nw){
+	int e=last[u];
+	while(e){
+		int v=t[e].to;
+		if(v==fa) {e=t[e].nxt;continue;}
+		int yw=nw^t[e].w;
+		ans=max(ans,query(yw));
+		insert(yw); dfs(u,v,yw);
+		e=t[e].nxt;
+	}
+}
+int main(){
+	int i,j,k,m,n,u,v,w;
+	scanf("%d",&n);
+	for(i=1;i<n;i++){
+		scanf("%d%d%d",&u,&v,&w);
+		add(u,v,w);add(v,u,w);
+	}
+	insert(0);
+	dfs(0,1,0);
+	printf("%d\n",ans);
+	return 0;
+}
+\end{lstlisting}
+
+\textbf{现在有一颗以 1 为根节点的由 n 个节点组成的树，节点从 1 至 n 编号。树上每个节点上都有一个权值 $v_i$。现在有 q 次操作，操作如下：}
+\begin{itemize}
+    \item \textit{1 x z}：查询节点 x 的子树中的节点权值与 z 异或结果的最大值。
+    \item \textit{2 x y z}：查询节点 x 到节点 y 的简单路径上的节点的权值与 z 异或结果最大值。
+\end{itemize}
+\begin{lstlisting}
+#include<iostream>
+#include<cstdio>
+using namespace std;
+const int N=1e5+7;
+struct Graph{
+	int nxt,to;
+}t[N<<1];
+int val[N];
+int last[N],ecnt;
+void build(int u,int v){
+	t[++ecnt].to=v;
+	t[ecnt].nxt=last[u];
+	last[u]=ecnt;
+}
+int dep[N],f[N][31],bl[N],br[N],ct,lg[N];
+int trie[N*70][2],rt1[N],rt2[N],sze[N*70];
+int cnt;
+int clone(int o){
+	int r=++cnt;
+	trie[r][0]=trie[o][0];
+	trie[r][1]=trie[o][1];
+	sze[r]=sze[o];
+	return r;
+}
+void inst(int &o,int x,int b){
+	o=clone(o);sze[o]++;
+	if(b==-1) return;
+	int v=(x>>b)&1;
+	inst(trie[o][v],x,b-1);
+}
+void dfs(int fa,int u){
+	bl[u]=++ct;dep[u]=dep[fa]+1;
+	f[u][0]=fa;
+	int i;
+	for(i=1;i<=17;i++){
+		f[u][i]=f[f[u][i-1]][i-1];
+	}
+	rt2[u]=rt2[fa];
+	inst(rt2[u],val[u],30);
+	rt1[ct]=rt1[ct-1];
+	inst(rt1[ct],val[u],30);
+	int e=last[u];
+	while(e){
+		int v=t[e].to;
+		if(v==fa){
+			e=t[e].nxt;
+			continue;
+		}
+		dfs(u,v);
+		e=t[e].nxt;
+	}
+	br[u]=ct;
+}
+int lca(int x,int y){
+	int i;
+	if(dep[x]<dep[y]){
+		int tmp=x;x=y;y=tmp;
+	}
+	while(dep[x]!=dep[y]){
+		x=f[x][lg[dep[x]-dep[y]]];
+	}
+	if(x==y) return x;
+	for(i=17;i>=0;i--){
+		if(f[x][i]!=f[y][i]){
+			x=f[x][i];
+			y=f[y][i];
+		}
+	}
+	return f[x][0];
+}
+int query1(int o,int x){
+	int res=0;
+	int i,ul=rt1[bl[o]-1],ur=rt1[br[o]],v;
+	for(i=30;i>=0;i--){
+		v=((x>>i)&1)^1;
+		if(sze[trie[ur][v]]-sze[trie[ul][v]]){
+			res|=1<<i;
+			ur=trie[ur][v];
+			ul=trie[ul][v];
+		}
+		else{
+			ur=trie[ur][v^1];
+			ul=trie[ul][v^1];
+		}
+	}
+	return res;
+}
+int query2(int ox,int oy,int x){
+	int res=0;
+	int i,ol=lca(ox,oy),v;
+	int ux=rt2[ox],uy=rt2[oy],ul=rt2[ol],uf=rt2[f[ol][0]];
+	for(i=30;i>=0;i--){
+		v=((x>>i)&1)^1;
+		if(sze[trie[ux][v]]+sze[trie[uy][v]]-sze[trie[ul][v]]-sze[trie[uf][v]]){
+			res|=1<<i;
+		}
+		else{
+			v^=1;
+		}
+		ux=trie[ux][v];
+		uy=trie[uy][v];
+		ul=trie[ul][v];
+		uf=trie[uf][v];
+	}
+	return res;
+}
+int main(){
+	int i,j,k,m,n,q,u,v,opt,x,y,z;
+	scanf("%d%d",&n,&q);
+	for(i=2;i<=n;i++) lg[i]=lg[i>>1]+1;
+	for(i=1;i<=n;i++) scanf("%d",&val[i]);
+	for(i=1;i<n;i++){
+		scanf("%d%d",&u,&v);
+		build(u,v);build(v,u);
+	}
+	dfs(0,1);
+	for(i=1;i<=q;i++){
+		scanf("%d",&opt);
+		if(opt==1){
+			scanf("%d%d",&x,&z);
+			printf("%d\n",query1(x,z));
+		}
+		else{
+			scanf("%d%d%d",&x,&y,&z);
+			printf("%d\n",query2(x,y,z));
+		}
+	}
+	return 0; 
+}
+\end{lstlisting}

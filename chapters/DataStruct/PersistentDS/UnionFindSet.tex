@@ -1,0 +1,104 @@
+\subsubsection{可持久化并查集}
+给定 $n$ 个集合，第 $i$ 个集合内初始状态下只有一个数，为 $i$ 。
+有 $m$ 次操作。操作分为 $3$ 种：
+\begin{itemize}
+    \item \textit{1 a b}：合并 a,b 所在集合
+    \item \textit{2 k}：回到第 k 次操作（执行三种操作中的任意一种都记为一次操作）之后的状态
+    \item \textit{3 a b}：询问 a,b 是否属于同一集合，如果是则输出 1 ，否则输出 0。
+\end{itemize}
+\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+using namespace std;
+const int N = 1e5 + 7;
+int cnt = 0;
+struct ZXS{
+    int lson, rson, fa, dep;
+}t[N * 40];
+int rt[2 * N];
+int n;
+void build(int &o, int l, int r){
+    o = ++ cnt;
+    if(l == r){
+        t[o].fa = l;
+        return;
+    }
+    int mid = (l + r) >> 1;
+    build(t[o].lson, l, mid);
+    build(t[o].rson, mid + 1, r);
+}
+int clone(int o){
+    int y = ++cnt;
+    t[y] = t[o];
+    return y;
+}
+void update(int &o, int l, int r, int x, int y){
+    o = clone(o);
+    if(l == r){
+        t[o].fa = y;
+        return;
+    }
+    int mid = (l + r) >> 1;
+    if(x <= mid) update(t[o].lson, l, mid, x, y);
+    else update(t[o].rson, mid + 1, r, x, y);
+}
+void add(int &o, int l, int r, int x){
+    if(l == r){
+        t[o].dep++;
+        return;
+    }
+    int mid = (l + r) >> 1;
+    if(x <= mid) add(t[o].lson, l, mid, x);
+    else add(t[o].rson, mid + 1, r, x);
+}
+int query_fa(int o, int l, int r, int x){
+    if(l == r){
+        return o;
+    }
+    int mid = (l + r) >> 1;
+    if(x <= mid) return query_fa(t[o].lson, l, mid, x);
+    else return query_fa(t[o].rson, mid + 1, r, x);
+}
+int find(int x, int nw){
+    int y = query_fa(rt[nw], 1, n, x);
+    while(x != t[y].fa){
+        x = t[y].fa;
+        y = query_fa(rt[nw], 1, n, x);
+    }
+    return y;
+}
+int main(){
+    int m, opt, x, y;
+    scanf("%d%d", &n, &m);
+    build(rt[0], 1, n);
+    for(int i = 1; i <= m; i++){
+        scanf("%d", &opt);
+        rt[i] = rt[i - 1];
+        if(opt == 1){
+            scanf("%d%d", &x, &y);
+            int xx = find(x, i), yy = find(y, i);
+            if(t[xx].dep > t[yy].dep) swap(xx, yy);
+            if(xx == yy) continue;
+            update(rt[i], 1, n, t[xx].fa, t[yy].fa);
+            if(t[xx].dep == t[yy].dep){
+                int tmp = rt[i];
+                add(tmp, 1, n, t[yy].fa);
+            }
+        }
+        else if(opt == 2){
+            scanf("%d", &x);
+            rt[i] = rt[x];
+        }
+        else if(opt == 3){
+            scanf("%d%d", &x, &y);
+            if(t[find(x, i)].fa == t[find(y, i)].fa){
+				printf("1\n");
+			}
+            else{
+            	printf("0\n");
+			}
+        }
+    }
+    return 0;
+}
+\end{lstlisting}

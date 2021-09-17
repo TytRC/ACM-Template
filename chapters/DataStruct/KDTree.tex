@@ -1,0 +1,104 @@
+\section{KD-Tree}
+\textbf{已知平面内 $N$ 个点的坐标，求欧氏距离下的第 $K$ 远点对。}
+\begin{lstlisting}
+#include<iostream>
+#include<cstdio>
+#include<algorithm>
+#include<queue>
+using namespace std;
+int ndm,cnt,root;
+struct Point{
+	long long x[2];
+}p[100005];
+bool operator<(const Point &a,const Point &b){
+	return a.x[ndm]<b.x[ndm];
+}
+priority_queue<long long,vector<long long>,greater<long long> > q;
+struct Node{
+	long long mx[2],mn[2];
+	int ls,rs,sz;
+	Point p;
+}t[100005];
+bool cmp(const Point &a,const Point &b){
+	return a.x<b.x;
+}
+long long sqr(long long x){
+	return x*x;
+}
+long long abss(long long x){
+	return x<0?-x:x;
+}
+long long dis(Point a,Point b){
+	long long res=0;
+	for(int i=0;i<2;i++) res+=sqr(a.x[i]-b.x[i]);
+	return res;
+}
+long long mxdis(int o,int y){
+	long long res=0;
+	for(int i=0;i<2;i++){
+		res+=sqr(max(abss(t[o].mx[i]-p[y].x[i]),abss(t[o].mn[i]-p[y].x[i])));
+	}
+	return res;
+}
+void pushup(int x){
+	int ls=t[x].ls,rs=t[x].rs;
+	for(int i=0;i<2;i++){
+		t[x].mn[i]=t[x].mx[i]=t[x].p.x[i];
+		if(ls){
+			t[x].mn[i]=min(t[x].mn[i],t[ls].mn[i]);
+			t[x].mx[i]=max(t[x].mx[i],t[ls].mx[i]);
+		}
+		if(rs){
+			t[x].mn[i]=min(t[x].mn[i],t[rs].mn[i]);
+			t[x].mx[i]=max(t[x].mx[i],t[rs].mx[i]);
+		}
+	}
+	t[x].sz=t[ls].sz+t[rs].sz+1;
+}
+int build(int l,int r,int dim){
+	if(l>r) return 0;
+	int mid=(l+r)>>1;
+	int rt=++cnt;
+	ndm=dim;
+	nth_element(p+l,p+mid,p+r+1);
+	t[rt].p=p[mid];
+	t[rt].ls=build(l,mid-1,dim^1);
+	t[rt].rs=build(mid+1,r,dim^1);
+	pushup(rt);
+	return rt;
+}
+void solve(int o,int v){
+	long long dl=-1,dr=-1;
+	if(t[o].ls) dl=mxdis(t[o].ls,v);
+	if(t[o].rs) dr=mxdis(t[o].rs,v);
+	long long dn=dis(t[o].p,p[v]);
+	if(dn>q.top()){
+		q.pop();
+		q.push(dn);
+	}
+	if(dl>dr){
+		if(dl>q.top()) solve(t[o].ls,v);
+		if(dr>q.top()) solve(t[o].rs,v);
+	}
+	else{
+		if(dr>q.top()) solve(t[o].rs,v);
+		if(dl>q.top()) solve(t[o].ls,v);
+	}
+	
+}
+int main(){
+	int i,j,k,m,n;
+	scanf("%d%d",&n,&k);
+	for(i=1;i<=n;i++){
+		scanf("%lld%lld",&p[i].x[0],&p[i].x[1]);
+	}
+	//random_shuffle(p+1,p+n+1);
+	root=build(1,n,0);
+	for(i=1;i<=2*k;i++) q.push(0);
+	for(i=1;i<=n;i++){
+		solve(root,i);
+	}
+	printf("%lld\n",q.top());
+	return 0;
+}
+\end{lstlisting}

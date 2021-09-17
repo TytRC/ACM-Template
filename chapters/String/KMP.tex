@@ -1,0 +1,26 @@
+\section{前缀函数与KMP算法}
+\subsection{前缀函数求解}
+\begin{lstlisting}
+// s下标从0开始
+for (int i = 1, j = 0; s[i]; ++i){
+    while (j && s[i] != s[j]) j = pi[j - 1];
+    pi[i] = (j += s[i] == s[j]);
+}
+\end{lstlisting}
+\subsection{字符串周期求解}
+$n-\pi[n-1]$是$s$的最小周期。\par
+如果要求所有的周期，则有：
+\begin{lstlisting}
+int len = i;
+while (i){
+    i = pi[i - 1];
+    q.push(i);
+}
+cout << q.size() << endl;
+while (!q.empty()){
+    cout << len - q.front();
+    q.pop();
+    if (!q.empty()) cout << " ";
+}
+\end{lstlisting}\par
+如果要求字符串的循环节每次都完整出现，则需要$n\mod n-\pi[n-1]==0$。

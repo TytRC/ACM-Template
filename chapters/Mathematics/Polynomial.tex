@@ -1,0 +1,342 @@
+\section{多项式}
+\subsection{快速傅里叶变换}
+\begin{lstlisting}
+// FFT.cpp
+// Created by RainCurtain on 2020/11/24.
+//
+
+#include <iostream>
+#include <cmath>
+#include <cstring>
+using namespace std;
+const int M = 2e5 + 5;
+const double PI = acos(-1);
+
+struct Complex{
+    double x, y;
+    Complex(double x = 0, double y = 0):x(x),y(y){}
+    Complex operator + (const Complex& t) const{
+        return {x + t.x, y + t.y};
+    }
+    Complex operator - (const Complex& t) const{
+        return {x - t.x, y - t.y};
+    }
+    Complex operator * (const Complex& t) const{
+        return {x * t.x - y * t.y, x * t.y + y * t.x};
+    }
+};
+
+int inv[M];
+inline void change(Complex f[], int len){
+    for (int i = 1; i < len; ++i){
+        inv[i] = inv[i >> 1] >> 1;
+        if (i & 1) inv[i] |= len / 2;
+    }
+    for (int i = 0; i < len; ++i){
+        if (i < inv[i])
+            swap(f[i], f[inv[i]]);
+    }
+}
+
+inline void fft(Complex f[], int len, int on = 1){
+    change(f, len);
+    for (int h = 2; h <= len; h <<= 1){
+        Complex wn(cos(2 * PI / h), sin(on * 2 * PI / h));
+        for (int j = 0; j < len; j += h){
+            Complex w(1);
+            for (int k = j; k < j + h / 2; ++k){
+                Complex u = f[k];
+                Complex v = w * f[k + h / 2];
+                f[k] = u + v;
+                f[k + h / 2] = u - v;
+                w = w * wn;
+            }
+        }
+    }
+    if (on == -1){
+        for (int i = 0; i < len; ++i)
+            f[i].x /= len, f[i].y /= len;
+    }
+}
+
+Complex a[M], b[M];
+char s1[M], s2[M];
+int res[M];
+int main(){
+    while (~scanf("%s%s", s1, s2)){
+        int len1 = strlen(s1);
+        int len2 = strlen(s2);
+        int len = 1;
+        while (len < len1 * 2 || len < len2 * 2) len <<= 1;
+        for (int i = 0; i < len1; ++i) a[i] = Complex(s1[len1 - i - 1] - '0');
+        for (int i = len1; i < len; ++i) a[i] = {0, 0};
+        for (int i = 0; i < len2; ++i) b[i] = Complex(s2[len2 - i - 1] - '0');
+        for (int i = len2; i < len; ++i) b[i] = {0, 0};
+        fft(a, len);
+        fft(b, len);
+        for (int i = 0; i < len; ++i) a[i] = a[i] * b[i];
+        fft(a, len, -1);
+        for (int i = 0; i < len; ++i) {
+            res[i] = a[i].x + 0.5;
+        }
+        for (int i = 0; i < len; ++i) {
+            res[i + 1] += res[i] / 10;
+            res[i] %= 10;
+        }
+        len = len1 + len2 - 1;
+        while (!res[len] && len) --len;
+        for (int i = len; i >= 0; --i)
+            printf("%d", res[i]);
+        printf("\n");
+    }
+    return 0;
+}
+\end{lstlisting}
+\subsection{快速数论变换}
+\begin{lstlisting}
+const int g = 3;//模数的原根
+const ll mod = 998244353;//通常情况下的模数
+
+int pow(int x,int y){
+	ll z = 1ll * x, ans = 1ll;
+    for (; y; y /= 2, z = z * z % mod)
+    if (y & 1) ans = ans * z % mod;//注意精度
+	return (int)ans % mod;
+}
+inline void ntt(int a[],int len,int inv){
+	//前面和FFT一样
+	for (int mid = 1; mid < len; mid *= 2){
+		int tmp = pow(g, (mod - 1) / (mid * 2));//原根代替单位根
+		if (inv == -1) tmp = pow(tmp, mod - 2);//逆变换则乘上逆元
+		for (int i = 0; i < len; i += mid * 2){
+			int omega = 1;
+			for (ll j = 0; j < mid; ++j, omega = omega * tmp % mod){
+				int x=a[i + j], y = omega * a[i + j + mid] % mod;
+				a[i + j] = (x + y) % mod, a[i + j+ mid] = (x - y + mod) % mod;//注意取模
+			}
+		}//大体和FFT差不多
+	}
+}
+\end{lstlisting}
+
+\subsection{多项式全家桶}
+qaq全能吧应该是
+\begin{lstlisting}
+#include<bits/stdc++.h>
+using namespace std;
+const int MAXN = 1 << 22;
+typedef long long ll;
+const ll g = 3, gi = 332748118;
+const ll mod = 998244353;
+int rev[MAXN];
+
+ll fastpow(ll a, ll b) {
+	ll res = 1;
+	for(;b;b >>= 1) {
+		if(b & 1) res = res * a % mod;
+		a = (a * a) % mod;
+	}
+	return res % mod;
+}
+void change(ll a[], int len) {
+	for(int i = 0; i < len; i++) {
+		rev[i] = rev[i >> 1] >> 1;
+		if(i & 1) {
+			rev[i] |= len >> 1;
+		}
+	}
+	for(int i = 0; i < len; i++) if(i > rev[i]) swap(a[i], a[rev[i]]);
+}
+void NTT(ll a[], int len, int on) {
+	change(a, len);
+	for(int l = 2; l <= len; l <<= 1) {
+		ll step = fastpow(on == 1 ? g : gi, (mod - 1) / l);
+		for(int i = 0; i < len; i += l) {
+			ll w = 1;
+			for(int j = i; j < i + l / 2; j++) {
+				ll g = a[j], h = w * a[j + l / 2] % mod;
+				a[j] = (g + h) % mod; a[j + l / 2] = (g - h + mod) % mod;
+				w = w * step % mod;
+			}
+		}
+	}
+	ll inv = fastpow(len, mod - 2);
+	if(on == -1) for(int i = 0; i < len; i++) a[i] = a[i] * inv % mod;
+}
+
+const double PI = acos(-1);
+struct Complex {
+	double x, y;
+	Complex(double _x = 0.0, double _y = 0.0) : x(_x), y(_y){
+	}
+	Complex operator + (const Complex  & rhs) const{ return Complex(x + rhs.x, y + rhs.y);}
+	Complex operator - (const Complex  & rhs) const{ return Complex(x - rhs.x, y - rhs.y);}
+	Complex operator * (const Complex  & rhs) const{ return Complex(x * rhs.x - y * rhs.y, y * rhs.x + x * rhs.y);}
+};
+void change(Complex a[], int len) {
+	for(int i = 0; i < len; i++) {
+		rev[i] = rev[i >> 1] >> 1;
+		if(i & 1) {
+			rev[i] |= len >> 1;
+		}
+	}
+	for(int i = 0; i < len; i++) if(i > rev[i]) swap(a[i], a[rev[i]]);
+}
+void FFT(Complex a[], int len, int on) {
+	change(a, len);
+	for(int l = 2; l <= len; l <<= 1) {
+		Complex step = Complex(cos(2.0 * PI / l), sin( on * 2.0 * PI / l));
+		for(int i = 0; i < len; i += l) {
+			Complex w = Complex(1, 0);
+			for(int j = i; j < i + l / 2; j++) {
+				Complex g = a[j], h = w * a[j + l / 2];
+				a[j] = g + h; a[j + l / 2] = g - h;
+				w = w * step;
+			}
+		}
+	}
+	if(on == -1) for(int i = 0; i < len; i++) a[i].x /= len;
+}
+
+void FWT_or(ll a[], int n, int type) {
+	for(int l = 2, k = 1; l <= 1 << n; l <<= 1, k <<= 1) {
+		for(int i = 0; i < 1 << n; i += l) {
+			for(int j = 0; j < k; j++) {
+				a[i + j + k] = (a[i + j] * type + a[i + j + k] + mod) % mod;
+			}
+		}
+	}
+}
+void FWT_and(ll a[], int n, int type) {
+	for(int l = 2, k = 1; l <= 1 << n; l <<= 1, k <<= 1) {
+		for(int i = 0; i < 1 << n; i += l) {
+			for(int j = 0; j < k; j++) {
+				a[i + j] = (a[i + j] + type * a[i + j + k] + mod) % mod;
+			}
+		}
+	}
+}
+void FWT(ll a[], int n, int type) {
+	ll inv = fastpow(2, mod - 2);
+	for(int l = 2, k = 1; l <= 1 << n; l <<= 1, k <<= 1) {
+		for(int i = 0; i < 1 << n; i += l) {
+			for(int j = 0; j < k; j++) {
+				ll g = a[i + j], h = a[i + j + k];
+				a[i + j] = (g  + h) % mod;
+				a[i + j + k] = (g - h + mod) % mod;
+				if(type == -1) {
+					a[i + j] = a[i + j] * inv % mod;
+					a[i + j + k]  = a[i + j + k] * inv % mod;
+				}
+			}
+		}
+	}
+}
+
+int limit;
+ll Buffer[MAXN], Inv[MAXN], Der[MAXN], Ln[MAXN], Exp[MAXN], Int[MAXN];
+void polyinv(ll h[], int n, ll f[]) {
+	if(n == 1) {
+		f[0] = fastpow(h[0], mod - 2);
+		return;
+	}
+	polyinv(h, (n + 1) >> 1, f);
+	for(limit = 1; limit <= n + n; limit <<= 1);
+	copy(h, h + n, Buffer);
+	fill(Buffer + n, Buffer + limit, 0);
+	NTT(Buffer, limit, 1); NTT(f, limit, 1);
+	for(int i = 0; i < limit; i++) {
+		f[i] = f[i] * ((2 - f[i] * Buffer[i] % mod + mod) % mod) % mod;
+	}
+	NTT(f, limit, -1);
+	fill(f + n, f + limit, 0);
+}
+
+void polydiv(ll f[], ll g[], int n, int m, ll q[], ll r[]) {
+	fill(Inv, Inv + (max(n, m) << 2), 0);
+	for(int i = 0; i <= n / 2; i++) {
+		swap(f[i], f[n - i]);
+	}
+	for(int i = 0; i <= m / 2; i++) {
+		swap(g[i], g[m - i]);
+	}
+	polyinv(g, n - m + 1, Inv);
+	for(limit = 1; limit <= n * 2 - m + 2; limit <<= 1);
+	NTT(Inv, limit, 1); NTT(f, limit, 1);
+	for(int i = 0; i < limit; i++) {
+		q[i] = Inv[i] * f[i] % mod;
+	}
+	NTT(q, limit, -1);
+	NTT(f, limit, -1);
+	for(int i = 0; i <= (n - m) / 2; i++) swap(q[i], q[n - m - i]);
+	fill(q + n - m + 1, q + limit, 0);
+	for(int i = 0; i <= n / 2; i++) {
+		swap(f[i], f[n - i]);
+	}
+	for(int i = 0; i <= m / 2; i++) {
+		swap(g[i], g[m - i]);
+	}
+	for(limit = 1; limit <= n; limit <<= 1);
+	NTT(f, limit, 1); NTT(g, limit, 1); NTT(q, limit, 1);
+	for(int i = 0; i < limit; i++) {
+		r[i] = (f[i] - q[i] * g[i] % mod + mod) % mod;
+	}
+	NTT(r, limit, -1);
+	NTT(q, limit, -1);
+}
+
+void polyder(ll h[], int n, ll f[]) {
+	fill(f, f + n, 0);
+	for(int i = 1; i < n; i++) {
+		f[i - 1] = h[i] * (ll) i % mod;
+	}
+	f[n - 1] = 0;
+}
+
+void polyint(ll h[], int n, ll f[]) {
+	fill(f, f + n + 1, 0);
+	for(int i = 1; i < n; i++) {
+		f[i] = h[i - 1] * fastpow((ll)i, mod - 2) % mod;
+	}
+	f[0] = 0;
+}
+void polyln(ll h[], int n, ll f[]) {
+	fill(f, f + (n << 2), 0);
+	fill(Inv, Inv + (n << 2), 0);
+	fill(Der, Der + (n << 2), 0);
+	polyinv(h, n, Inv);
+	polyder(h, n, Der);
+	for(limit = 1; limit <= n * 2; limit <<= 1);
+	fill(Inv + n, Inv + limit, 0); fill(Der + n, Der + limit, 0);
+	NTT(Inv, limit, 1); NTT(Der, limit, 1);
+	for(int i = 0; i < limit; i++) {
+		Der[i] = Der[i] * Inv[i] % mod;
+	}
+	NTT(Der, limit, -1);
+	fill(Der + n, Der + limit, 0);
+	polyint(Der, n, f);	
+}
+void polyexp(ll h[], int n, ll f[]) {
+	if(n == 1) {
+		f[0] = 1;
+		return;
+	}
+	polyexp(h, (n + 1) >> 1, f);
+	fill(Ln, Ln + (n << 2), 0);
+	polyln(f, n, Ln);
+	for(limit = 1; limit <= n + n; limit <<= 1);
+	copy(h, h + n, Buffer);
+	fill(Buffer + n, Buffer + limit, 0);
+	NTT(Ln, limit, 1); NTT(Buffer, limit, 1); NTT(f, limit, 1);
+	for(int i = 0; i < limit; i++) {
+		f[i] = f[i] * ((1 - Ln[i] + Buffer[i] + mod) % mod) % mod;
+	}
+	NTT(f, limit, -1);
+	fill(f + n, f + limit, 0);
+}
+int n, m; 
+ll A[MAXN], B[MAXN], C[MAXN], D[MAXN], E[MAXN];
+int main() {
+	return 0;
+}
+\end{lstlisting}

@@ -1,0 +1,197 @@
+\subsection{可持久化线段树}
+\subsubsection{求区间第k小（主席树）}
+\begin{lstlisting}
+/*
+给定 n 个整数构成的序列 a，将对于指定的闭区间 [l,r] 查询其区间内的第 k 小值。
+*/
+#include<iostream>
+#include<cstdio>
+#include<algorithm>
+using namespace std; 
+const int N=2e5+7;
+struct PST{
+	int ls,rs;
+	int num;
+}t[N*20];
+int a[N],b[N];
+int rt[N],cnt;
+void pushup(int o){
+	t[o].num=t[t[o].ls].num+t[t[o].rs].num;
+}
+void build(int &o,int l,int r){
+	o=++cnt;
+	if(l==r){
+		t[o].num=0;
+		return;
+	}
+	int mid=(l+r)>>1;
+	build(t[o].ls,l,mid);build(t[o].rs,mid+1,r);
+	pushup(o);
+}
+int clone(int x){
+	int r=++cnt;
+	t[r]=t[x];
+	return r;
+}
+void update(int &o,int l,int r,int c){
+	o=clone(o);
+	if(l==r){
+		t[o].num++;
+		return;
+	}
+	int mid=(l+r)>>1;
+	if(c<=mid) update(t[o].ls,l,mid,c);
+	else update(t[o].rs,mid+1,r,c);
+	pushup(o);
+}
+int query(int ox,int oy,int l,int r,int k){
+	if(l>=r) return l;
+	int mid=(l+r)>>1;
+	int z=t[t[oy].ls].num-t[t[ox].ls].num;
+	if(z>=k) return query(t[ox].ls,t[oy].ls,l,mid,k);
+	else return query(t[ox].rs,t[oy].rs,mid+1,r,k-z);
+}
+int main(){
+	int i,j,k,m,n,x,y;
+	scanf("%d%d",&n,&m);
+	for(i=1;i<=n;i++){
+		scanf("%d",&a[i]);
+		b[i]=a[i];
+	}
+	sort(b+1,b+n+1);
+	int d=unique(b+1,b+n+1)-b-1;
+	build(rt[0],1,d);
+	for(i=1;i<=n;i++){
+		x=lower_bound(b+1,b+d+1,a[i])-b;
+		rt[i]=rt[i-1];
+		update(rt[i],1,d,x);
+	}
+	for(i=1;i<=m;i++){
+		scanf("%d%d%d",&x,&y,&k);
+		printf("%d\n",b[query(rt[x-1],rt[y],1,d,k)]);
+	}
+	return 0;
+}
+\end{lstlisting}
+
+
+\subsubsection{树上路径点权第 k 小}
+\begin{lstlisting}
+#include<iostream>
+#include<cstdio>
+#include<algorithm>
+#define lson t[o].ls
+#define rson t[o].rs
+using namespace std;
+const int N=1e5+7;
+int a[N],b[N];
+struct Graph{
+	int to,nxt;
+}e[N<<1];
+int last[N],ecnt,f[N][20];
+void addEdge(int u,int v){
+	e[++ecnt].to=v;
+	e[ecnt].nxt=last[u];
+	last[u]=ecnt;
+}
+struct PST{
+	int ls,rs,num;
+}t[N*30];
+int cnt,d;
+int rt[N];
+int dep[N];
+int lg[N];
+void pushup(int o){
+	t[o].num=t[lson].num+t[rson].num;
+}
+void build(int &o,int l,int r){
+	o=++cnt;
+	if(l==r){
+		t[o].num=0;
+		return;
+	}
+	int mid=(l+r)>>1;
+	build(lson,l,mid);
+	build(rson,mid+1,r);
+}
+int clone(int x){
+	int r=++cnt;
+	t[r]=t[x];
+	return r;
+}
+void update(int &o,int l,int r,int c){
+	o=clone(o);
+	if(l==r){
+		t[o].num++;
+		return;
+	}
+	int mid=(l+r)>>1;
+	if(c<=mid) update(lson,l,mid,c);
+	else update(rson,mid+1,r,c);
+	pushup(o);
+}
+void dfs(int fa,int x){
+	f[x][0]=fa;
+	for(int i=1;i<=18;i++) f[x][i]=f[f[x][i-1]][i-1];
+	dep[x]=dep[fa]+1;
+	rt[x]=rt[fa];
+	update(rt[x],1,d,lower_bound(b+1,b+d+1,a[x])-b);
+	int g=last[x];
+	while(g){
+		int v=e[g].to;
+		if(v!=fa){
+			dfs(x,v);
+		}
+		g=e[g].nxt;
+	}
+}
+int lca(int u,int v){
+	if(dep[u]<dep[v]){
+		int tmp=u;u=v;v=tmp;
+	}
+	while(dep[u]!=dep[v]){
+		u=f[u][lg[dep[u]-dep[v]]];
+	}
+	if(u==v) return u;
+	for(int i=18;i>=0;i--){
+		if(f[u][i]!=f[v][i]){
+			u=f[u][i];
+			v=f[v][i];
+		}
+	}
+	return f[u][0];
+}
+int query(int ox,int oy,int oz,int of,int l,int r,int k){
+	if(l==r) return l;
+	int p=t[t[ox].ls].num+t[t[oy].ls].num-t[t[oz].ls].num-t[t[of].ls].num;
+	int mid=(l+r)>>1;
+	if(p>=k) return query(t[ox].ls,t[oy].ls,t[oz].ls,t[of].ls,l,mid,k);
+	else return query(t[ox].rs,t[oy].rs,t[oz].rs,t[of].rs,mid+1,r,k-p);
+}
+int main(){
+	int i,j,k,m,n,x,y,ls=0;
+	//freopen("test.in","r",stdin);
+	scanf("%d%d",&n,&m);
+	for(i=2;i<=n;i++) lg[i]=lg[i>>1]+1;
+	for(i=1;i<=n;i++){
+		scanf("%d",&a[i]);
+		b[i]=a[i];
+	}
+	sort(b+1,b+n+1);
+	d=unique(b+1,b+n+1)-b-1;
+	build(rt[0],1,d);
+	for(i=1;i<n;i++){
+		scanf("%d%d",&x,&y);
+		addEdge(x,y);addEdge(y,x);
+	}
+	dfs(0,1);
+	for(i=1;i<=m;i++){
+		scanf("%d%d%d",&x,&y,&k);
+		x=x^ls;
+		int la=lca(x,y);
+		ls=b[query(rt[x],rt[y],rt[la],rt[f[la][0]],1,d,k)];
+		printf("%d\n",ls);
+	}
+	return 0;
+}
+\end{lstlisting}

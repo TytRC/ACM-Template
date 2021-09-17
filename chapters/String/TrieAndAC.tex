@@ -1,0 +1,52 @@
+\section{Trie与AC自动机}
+\begin{lstlisting}
+struct AC{
+    int tr[MAXN][26], cnt;
+    int id[MAXN], fail[MAXN];
+    int val[MAXN], num[155]; // val表示这个节点被匹配了几次，num表示这个模式串被匹配了几次
+
+    inline void init(){ /**code here**/ }
+
+    inline void insert(const char* s, int poi){
+        int p = 0;
+        for (int i = 0; s[i]; ++i){
+            int c = s[i] - 'a';
+            if (!tr[p][c]) tr[p][c] = ++cnt;
+            p = tr[p][c];
+        }
+        id[p] = poi;
+    }
+    inline void build(){
+        queue<int> q;
+        for (int i = 0; i < 26; ++i)
+            if (tr[0][i]) q.push(tr[0][i]);
+        while (!q.empty()){
+            int u = q.front();
+            q.pop();
+            for (int i = 0; i < 26; ++i){
+                int v = tr[u][i];
+                if (v){
+                    fail[v] = tr[fail[u]][i];
+                    q.push(v);
+                }else tr[u][i] = tr[fail[u]][i];
+            }
+        }
+    }
+    int query(const char* s){
+        int p = 0;
+        for (int i = 0; s[i]; ++i){
+            int c = s[i] - 'a';
+            p = tr[p][c];
+            for (int j = p; j; j = fail[j]) ++val[j];
+        }
+        int res = 0;
+        for (int i = 0; i <= cnt; ++i) {
+            if (id[i]) {
+                res = max(res, val[i]);
+                num[id[i]] = val[i];
+            }
+        }
+        return  res;
+    }
+}
+\end{lstlisting}
