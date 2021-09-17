@@ -1,0 +1,487 @@
+\section{可持久化数据结构}
+\subsection{可持久化线段树}
+\subsubsection{求区间第 k 小（主席树）}
+	给定 $n$ 个整数构成的序列 $a$，将对于指定的闭区间 $[l,r]$,查询其区间内的第 $k$ 小值。
+	\begin{lstlisting}
+#include<iostream>
+#include<cstdio>
+#include<algorithm>
+using namespace std; 
+const int N=2e5+7;
+struct PST{
+	int ls,rs;
+	int num;
+}t[N*20];
+int a[N],b[N];
+int rt[N],cnt;
+void pushup(int o){
+	t[o].num=t[t[o].ls].num+t[t[o].rs].num;
+}
+void build(int &o,int l,int r){
+	o=++cnt;
+	if(l==r){
+		t[o].num=0;
+		return;
+	}
+	int mid=(l+r)>>1;
+	build(t[o].ls,l,mid);build(t[o].rs,mid+1,r);
+	pushup(o);
+}
+int clone(int x){
+	int r=++cnt;
+	t[r]=t[x];
+	return r;
+}
+void update(int &o,int l,int r,int c){
+	o=clone(o);
+	if(l==r){
+		t[o].num++;
+		return;
+	}
+	int mid=(l+r)>>1;
+	if(c<=mid) update(t[o].ls,l,mid,c);
+	else update(t[o].rs,mid+1,r,c);
+	pushup(o);
+}
+int query(int ox,int oy,int l,int r,int k){
+	if(l>=r) return l;
+	int mid=(l+r)>>1;
+	int z=t[t[oy].ls].num-t[t[ox].ls].num;
+	if(z>=k) return query(t[ox].ls,t[oy].ls,l,mid,k);
+	else return query(t[ox].rs,t[oy].rs,mid+1,r,k-z);
+}
+int main(){
+	int i,j,k,m,n,x,y;
+	scanf("%d%d",&n,&m);
+	for(i=1;i<=n;i++){
+		scanf("%d",&a[i]);
+		b[i]=a[i];
+	}
+	sort(b+1,b+n+1);
+	int d=unique(b+1,b+n+1)-b-1;
+	build(rt[0],1,d);
+	for(i=1;i<=n;i++){
+		x=lower_bound(b+1,b+d+1,a[i])-b;
+		rt[i]=rt[i-1];
+		update(rt[i],1,d,x);
+	}
+	for(i=1;i<=m;i++){
+		scanf("%d%d%d",&x,&y,&k);
+		printf("%d\n",b[query(rt[x-1],rt[y],1,d,k)]);
+	}
+	return 0;
+}\end{lstlisting}
+
+\subsubsection{树上点权第 k 小}
+	给定一棵 $n$ 个节点的树，每个点有一个权值。有 $m$ 个询问，每次给你 $u,v,k$，你需要回答 $\text{u xor last}$ 和 $v$ 这两个节点间第 $k$ 小的点权。
+	
+	其中 $\text{last}$ 是上一个询问的答案，定义其初始为 $0$，即第一个询问的 $u$ 是明文。
+	\begin{lstlisting}
+#include<iostream>
+#include<cstdio>
+#include<algorithm>
+#define lson t[o].ls
+#define rson t[o].rs
+using namespace std;
+const int N=1e5+7;
+int a[N],b[N];
+struct Graph{
+	int to,nxt;
+}e[N<<1];
+int last[N],ecnt,f[N][20];
+void addEdge(int u,int v){
+	e[++ecnt].to=v;
+	e[ecnt].nxt=last[u];
+	last[u]=ecnt;
+}
+struct PST{
+	int ls,rs,num;
+}t[N*30];
+int cnt,d; int rt[N], dep[N], lg[N];
+void pushup(int o){
+	t[o].num=t[lson].num+t[rson].num;
+}
+void build(int &o,int l,int r){
+	o=++cnt;
+	if(l==r){
+		t[o].num=0; return;
+	}
+	int mid=(l+r)>>1;
+	build(lson,l,mid); build(rson,mid+1,r);
+}
+int clone(int x){
+	int r=++cnt; t[r]=t[x];
+	return r;
+}
+void update(int &o,int l,int r,int c){
+	o=clone(o);
+	if(l==r){
+		t[o].num++; return;
+	}
+	int mid=(l+r)>>1;
+	if(c<=mid) update(lson,l,mid,c);
+	else update(rson,mid+1,r,c);
+	pushup(o);
+}
+void dfs(int fa,int x){
+	f[x][0]=fa;
+	for(int i=1;i<=18;i++) f[x][i]=f[f[x][i-1]][i-1];
+	dep[x]=dep[fa]+1;
+	rt[x]=rt[fa];
+	update(rt[x],1,d,lower_bound(b+1,b+d+1,a[x])-b);
+	int g=last[x];
+	while(g){
+		int v=e[g].to;
+		if(v!=fa) dfs(x,v);
+		g=e[g].nxt;
+	}
+}
+int lca(int u,int v){
+	if(dep[u]<dep[v]){
+		int tmp=u;u=v;v=tmp;
+	}
+	while(dep[u]!=dep[v]){
+		u=f[u][lg[dep[u]-dep[v]]];
+	}
+	if(u==v) return u;
+	for(int i=18;i>=0;i--){
+		if(f[u][i]!=f[v][i]){
+			u=f[u][i]; v=f[v][i];
+		}
+	}
+	return f[u][0];
+}
+int query(int ox,int oy,int oz,int of,int l,int r,int k){
+	if(l==r) return l;
+	int p=t[t[ox].ls].num+t[t[oy].ls].num-t[t[oz].ls].num-t[t[of].ls].num;
+	int mid=(l+r)>>1;
+	if(p>=k) return query(t[ox].ls,t[oy].ls,t[oz].ls,t[of].ls,l,mid,k);
+	else return query(t[ox].rs,t[oy].rs,t[oz].rs,t[of].rs,mid+1,r,k-p);
+}
+int main(){
+	int i,j,k,m,n,x,y,ls=0;
+	scanf("%d%d",&n,&m);
+	for(i=2;i<=n;i++) lg[i]=lg[i>>1]+1;
+	for(i=1;i<=n;i++){
+		scanf("%d",&a[i]);
+		b[i]=a[i];
+	}
+	sort(b+1,b+n+1);
+	d=unique(b+1,b+n+1)-b-1;
+	build(rt[0],1,d);
+	for(i=1;i<n;i++){
+		scanf("%d%d",&x,&y);
+		addEdge(x,y);addEdge(y,x);
+	}
+	dfs(0,1);
+	for(i=1;i<=m;i++){
+		scanf("%d%d%d",&x,&y,&k);
+		x=x^ls;
+		int la=lca(x,y);
+		ls=b[query(rt[x],rt[y],rt[la],rt[f[la][0]],1,d,k)];
+		printf("%d\n",ls);
+	}
+	return 0;
+}\end{lstlisting}
+	
+\subsection{可持久化Trie树}
+\subsubsection{求带权树最大异或路径}
+	给定一棵 $n$ 个点的带权树，结点下标从 $1$ 开始到 $N$。寻找树中找两个结点，求最长的异或路径。
+	异或路径指的是指两个结点之间唯一路径上的所有边权的异或。
+	\begin{lstlisting}
+#include<iostream>
+#include<cstdio>
+using namespace std;
+int trie[5000000][2],cnt;
+struct TU{
+	int to,nxt,w;
+}t[200005];
+int ecnt,last[100005],ans=0;
+void add(int u,int v,int w){
+	t[++ecnt].to=v;
+	t[ecnt].nxt=last[u];
+	t[ecnt].w=w; 
+	last[u]=ecnt;
+}
+void insert(int x){
+	int i,u=0,v;
+	for(i=30;i>=0;i--){
+		v=(1<<i)&x?1:0;
+		if(trie[u][v]==0){
+			trie[u][v]=++cnt;
+		}
+		u=trie[u][v];
+	}
+}
+int query(int x){
+	int res=0,u=0,i,v;
+	for(i=30;i>=0;i--){
+		v=x&(1<<i)?0:1;
+		if(trie[u][v]){
+			res|=1<<i;
+			u=trie[u][v];
+		}
+		else u=trie[u][1-v];
+	}
+	return res;
+}
+void dfs(int fa,int u,int nw){
+	int e=last[u];
+	while(e){
+		int v=t[e].to;
+		if(v==fa){
+			e=t[e].nxt;
+			continue;
+		}
+		int yw=nw^t[e].w;
+		ans=max(ans,query(yw));
+		insert(yw);
+		dfs(u,v,yw);
+		e=t[e].nxt;
+	}
+}
+int main(){
+	int i,j,k,m,n,u,v,w;
+	scanf("%d",&n);
+	for(i=1;i<n;i++){
+		scanf("%d%d%d",&u,&v,&w);
+		add(u,v,w);add(v,u,w);
+	}
+	insert(0);
+	dfs(0,1,0);
+	printf("%d\n",ans);
+	return 0;
+}\end{lstlisting}
+
+\subsubsection{查询子树/路径上权值与给定值异或最大值}
+	现在有一颗以 1 为根节点的由 n 个节点组成的树，节点从 1 至 n 编号。树上每个节点上都有一个权值 $v_i$。现在有 q 次操作，操作如下：
+	\begin{itemize}
+		\item \text{1 x z}：查询节点 x 的子树中的节点权值与 z 异或结果的最大值。
+		\item \text{2 x y z}：查询节点 x 到节点 y 的简单路径上的节点的权值与 z 异或结果最大值。
+	\end{itemize}
+	\begin{lstlisting}
+#include<iostream>
+#include<cstdio>
+using namespace std;
+const int N=1e5+7;
+struct Graph{
+	int nxt,to;
+}t[N<<1];
+int val[N];
+int last[N],ecnt;
+void build(int u,int v){
+	t[++ecnt].to=v;
+	t[ecnt].nxt=last[u];
+	last[u]=ecnt;
+}
+int dep[N],f[N][31],bl[N],br[N],lg[N],ct;
+int trie[N*70][2],rt1[N],rt2[N],sze[N*70], cnt;
+int clone(int o){
+	int r=++cnt;
+	trie[r][0]=trie[o][0];
+	trie[r][1]=trie[o][1];
+	sze[r]=sze[o];
+	return r;
+}
+void inst(int &o,int x,int b){
+	o=clone(o);sze[o]++;
+	if(b==-1) return;
+	int v=(x>>b)&1;
+	inst(trie[o][v],x,b-1);
+}
+void dfs(int fa,int u){
+	bl[u]=++ct;dep[u]=dep[fa]+1;
+	f[u][0]=fa;
+	int i;
+	for(i=1;i<=17;i++) f[u][i]=f[f[u][i-1]][i-1];
+	rt2[u]=rt2[fa];
+	inst(rt2[u],val[u],30);
+	rt1[ct]=rt1[ct-1];
+	inst(rt1[ct],val[u],30);
+	int e=last[u];
+	while(e){
+		int v=t[e].to;
+		if(v==fa){
+			e=t[e].nxt;
+			continue;
+		}
+		dfs(u,v);
+		e=t[e].nxt;
+	}
+	br[u]=ct;
+}
+int lca(int x,int y){
+	int i;
+	if(dep[x]<dep[y]){
+		int tmp=x;x=y;y=tmp;
+	}
+	while(dep[x]!=dep[y]) x=f[x][lg[dep[x]-dep[y]]];
+	if(x==y) return x;
+	for(i=17;i>=0;i--){
+		if(f[x][i]!=f[y][i]){
+			x=f[x][i]; y=f[y][i];
+		}
+	}
+	return f[x][0];
+}
+int query1(int o,int x){
+	int res=0;
+	int i,ul=rt1[bl[o]-1],ur=rt1[br[o]],v;
+	for(i=30;i>=0;i--){
+		v=((x>>i)&1)^1;
+		if(sze[trie[ur][v]]-sze[trie[ul][v]]){
+			res|=1<<i;
+			ur=trie[ur][v];
+			ul=trie[ul][v];
+		}
+		else{
+			ur=trie[ur][v^1];
+			ul=trie[ul][v^1];
+		}
+	}
+	return res;
+}
+int query2(int ox,int oy,int x){
+	int res=0;
+	int i,ol=lca(ox,oy),v;
+	int ux=rt2[ox],uy=rt2[oy],ul=rt2[ol],uf=rt2[f[ol][0]];
+	for(i=30;i>=0;i--){
+		v=((x>>i)&1)^1;
+		if(sze[trie[ux][v]]+sze[trie[uy][v]]-sze[trie[ul][v]]-sze[trie[uf][v]]){
+			res|=1<<i;
+		}
+		else{
+			v^=1;
+		}
+		ux=trie[ux][v]; uy=trie[uy][v];
+		ul=trie[ul][v]; uf=trie[uf][v];
+	}
+	return res;
+}
+int main(){
+	int i,j,k,m,n,q,u,v,opt,x,y,z;
+	scanf("%d%d",&n,&q);
+	for(i=2;i<=n;i++) lg[i]=lg[i>>1]+1;
+	for(i=1;i<=n;i++) scanf("%d",&val[i]);
+	for(i=1;i<n;i++){
+		scanf("%d%d",&u,&v);
+		build(u,v);build(v,u);
+	}
+	dfs(0,1);
+	for(i=1;i<=q;i++){
+		scanf("%d",&opt);
+		if(opt==1){
+			scanf("%d%d",&x,&z);
+			printf("%d\n",query1(x,z));
+		}
+		else{
+			scanf("%d%d%d",&x,&y,&z);
+			printf("%d\n",query2(x,y,z));
+		}
+	}
+	return 0; 
+}\end{lstlisting}
+\subsection{可持久化并查集}
+	给定 n 个集合，第 i 个集合内初始状态下只有一个数，为 i 。
+	有 m 次操作。操作分为 3 种：
+	\begin{itemize}
+		\item 1 a b: 合并 a,b 所在集合；
+		\item 2 k: 回到第 k 次操作（执行三种操作中的任意一种都记为一次操作）之后的状态；
+		\item 3 a b: 询问 a,b 是否属于同一集合，如果是则输出 1 ，否则输出 0。
+	\end{itemize}
+	\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+using namespace std;
+const int N = 1e5 + 7;
+int cnt = 0;
+struct ZXS{
+    int lson, rson, fa, dep;
+}t[N * 40];
+int rt[2 * N];
+int n;
+void build(int &o, int l, int r){
+    o = ++ cnt;
+    if(l == r){
+        t[o].fa = l;
+        return;
+    }
+    int mid = (l + r) >> 1;
+    build(t[o].lson, l, mid);
+    build(t[o].rson, mid + 1, r);
+}
+int clone(int o){
+    int y = ++cnt;
+    t[y] = t[o];
+    return y;
+}
+void update(int &o, int l, int r, int x, int y){
+    o = clone(o);
+    if(l == r){
+        t[o].fa = y;
+        return;
+    }
+    int mid = (l + r) >> 1;
+    if(x <= mid) update(t[o].lson, l, mid, x, y);
+    else update(t[o].rson, mid + 1, r, x, y);
+}
+void add(int &o, int l, int r, int x){
+    if(l == r){
+        t[o].dep++;
+        return;
+    }
+    int mid = (l + r) >> 1;
+    if(x <= mid) add(t[o].lson, l, mid, x);
+    else add(t[o].rson, mid + 1, r, x);
+}
+int query_fa(int o, int l, int r, int x){
+    if(l == r){
+        return o;
+    }
+    int mid = (l + r) >> 1;
+    if(x <= mid) return query_fa(t[o].lson, l, mid, x);
+    else return query_fa(t[o].rson, mid + 1, r, x);
+}
+int find(int x, int nw){
+    int y = query_fa(rt[nw], 1, n, x);
+    while(x != t[y].fa){
+        x = t[y].fa;
+        y = query_fa(rt[nw], 1, n, x);
+    }
+    return y;
+}
+int main(){
+    int m, opt, x, y;
+    scanf("%d%d", &n, &m);
+    build(rt[0], 1, n);
+    for(int i = 1; i <= m; i++){
+        scanf("%d", &opt);
+        rt[i] = rt[i - 1];
+        if(opt == 1){
+            scanf("%d%d", &x, &y);
+            int xx = find(x, i), yy = find(y, i);
+            if(t[xx].dep > t[yy].dep) swap(xx, yy);
+            if(xx == yy) continue;
+            update(rt[i], 1, n, t[xx].fa, t[yy].fa);
+            if(t[xx].dep == t[yy].dep){
+                int tmp = rt[i];
+                add(tmp, 1, n, t[yy].fa);
+            }
+        }
+        else if(opt == 2){
+            scanf("%d", &x);
+            rt[i] = rt[x];
+        }
+        else if(opt == 3){
+            scanf("%d%d", &x, &y);
+            if(t[find(x, i)].fa == t[find(y, i)].fa){
+				printf("1\n");
+			}
+            else{
+            	printf("0\n");
+			}
+        }
+    }
+    return 0;
+}\end{lstlisting}
+	

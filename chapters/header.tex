@@ -1,7 +1,24 @@
 \documentclass[cn,11pt,chinese,color=blue,toc=onecol,scheme=chinese]{elegantbook}
-\lstset{
-    language=c++
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\lstset{ %
+	backgroundcolor=\color{white},      % choose the background color
+	basicstyle=\footnotesize\ttfamily,  % size of fonts used for the code
+	% frame=shadowbox,
+	columns=fullflexible,
+	tabsize=4,
+	breaklines=true,               % automatic line breaking only at whitespace
+	captionpos=b,                  % sets the caption-position to bottom
+	commentstyle=\color{red!30!green!90!blue!100!},  % comment style
+	escapeinside={\%*}{*)},        % if you want to add LaTeX within your code
+	keywordstyle=\color{blue},     % keyword style
+	stringstyle=\color{codepurple}\ttfamily,  % string literal style
+	rulesepcolor=\color{red!20!green!20!blue!20},
+	% identifierstyle=\color{red},
+	language=c++,
 }
+\usepackage{multicol, graphicx}
+\usepackage{subfigure}
+\usepackage{listings}
 
 % color = green、cyan、blue、gray、black
 % toc = onecol、twocol
