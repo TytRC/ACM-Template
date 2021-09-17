@@ -1,0 +1,655 @@
+\section{莫队算法}
+\subsection{普通莫队}
+	\href{https://darkbzoj.tk/problem/2038}{黑暗爆炸 - 2038 小Z的袜子} \par
+	查询区间中任意取两数相等的概率
+	\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+#include <cmath>
+#include <algorithm>
+using namespace std;
+const int N = 1E5 + 7;
+int c[N], pos[N];
+struct QRY{
+    int l, r, id;
+    bool operator < (const QRY &tmp)const{
+        return pos[l] == pos[tmp.l]?r < tmp.r:l < tmp.l;
+    }
+}q[N];
+struct ANS{
+    long long a, b;
+}ans[N];
+long long gcd(long long a, long long b){
+    return b == 0?a:gcd(b, a % b);
+}
+long long cnt[N];
+long long sum = 0;
+void add(int x){
+    sum += cnt[x];
+    cnt[x]++;
+}
+void del(int x){
+    cnt[x]--;
+    sum -= cnt[x];
+}
+int main(){
+    int n, m, l, r;
+    scanf("%d%d", &n, &m);
+    int t = sqrt(n);
+    for(int i = 1; i <= n; i++){
+        scanf("%d", &c[i]);
+        pos[i] = i / t + 1;
+    }
+    for(int i = 1; i <= m; i++){
+        scanf("%d%d", &l, &r);
+        ans[i].b = 1;
+        q[i] = {l, r, i};
+    }
+    sort(q + 1, q + m + 1);
+    l = 1, r = 0;
+    for(int i = 1; i <= m; i++){
+        if(q[i].l == q[i].r) continue;
+        while(l > q[i].l) add(c[--l]);
+        while(r < q[i].r) add(c[++r]);
+        while(l < q[i].l) del(c[l++]);
+        while(r > q[i].r) del(c[r--]);
+        ans[q[i].id] = {sum, (long long)(q[i].r - q[i].l + 1) * (q[i].r - q[i].l) / 2};
+        long long g = gcd(ans[q[i].id].a, ans[q[i].id].b);
+        ans[q[i].id].a /= g; ans[q[i].id].b /= g;
+    }
+    for(int i = 1; i <= m; i++) printf("%lld/%lld\n", ans[i].a, ans[i].b);
+    return 0;
+}\end{lstlisting}
+\subsection{莫队+数据结构}
+	\href{https://darkbzoj.tk/problem/3809}{BZOJ3809 Gty的二逼妹子序列} \par
+	查询区间内值在 $[a, b]$ 范围内的种类数，可用莫队+树状数组维护
+	\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+#include <cmath>
+#include <algorithm>
+using namespace std;
+const int N = 3E5 + 7;
+int s[N], pos[N];
+struct QRY{
+    int l, r, a, b, id;
+    bool operator < (const QRY &tmp) const{
+        return pos[l] == pos[tmp.l]?r < tmp.r:l < tmp.l;
+    }
+}q[N * 4];
+int hv[N], block[N];
+int ans[N * 4];
+void add(int x){
+    if(!hv[x]) block[pos[x]]++;
+    hv[x]++;
+}
+void del(int x){
+    hv[x]--;
+    if(!hv[x]) block[pos[x]]--;
+}
+int main(){
+    int n, m, l, r, a, b;
+    scanf("%d%d", &n, &m);
+    int t = sqrt(n);
+    for(int i = 1; i <= n; i++){
+        scanf("%d", &s[i]);
+        pos[i] = i / t + 1;
+    }
+    for(int i = 1; i <= m; i++){
+        scanf("%d%d%d%d", &l, &r, &a, &b);
+        q[i] = {l, r, a, b, i};
+    }
+    sort(q + 1, q + m + 1);
+    l = 0, r = 0;
+    for(int i = 1; i <= m; i++){
+        while(l > q[i].l) add(s[--l]);
+        while(r < q[i].r) add(s[++r]);
+        while(l < q[i].l) del(s[l++]);
+        while(r > q[i].r) del(s[r--]);
+        a = q[i].a; b = q[i].b;
+        int res = 0;
+        if(pos[a] == pos[b]){
+            while(a <= b){
+                if(hv[a]) res++;
+                a++;
+            }
+            ans[q[i].id] = res;
+            continue;
+        }
+        int x = pos[a] * t, y = (pos[b] - 1) * t;
+        while(a < x && a <= n){
+            if(hv[a]) res++;
+            a++;
+        }
+        while(y <= b){
+            if(hv[y]) res++;
+            y++;
+        }
+        for(int j = pos[q[i].a] + 1; j < pos[q[i].b]; j++){
+            res += block[j];
+        }
+        ans[q[i].id] = res;
+    }
+    for(int i = 1; i <= m; i++){
+        printf("%d\n", ans[i]);
+    }
+}\end{lstlisting}
+\subsection{带修莫队}
+	\href{https://codeforces.com/problemset/problem/940/F}{CodeForces - 940F Machine Learning} \par
+	查询区间数出现次数的MEX（因答案不超过1000，故可以每次暴力查询）
+	\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+#include <algorithm>
+#include <cmath>
+#include <unordered_map>
+using namespace std;
+const int N = 2e5 + 7;
+int pos[N], a[N];
+int chp[N], chx[N];
+int hv[N], ct[N];
+struct QRY{
+    int l, r, t, id;
+    bool operator < (const QRY &tmp)const{
+        if(pos[l] != pos[tmp.l]) return l < tmp.l;
+        if(pos[r] != pos[tmp.r]) return r < tmp.r;
+        return t < tmp.t;
+    }
+}q[N];
+int cnt, tt, tot, res = 1, l, r;
+unordered_map<int, int> ma;
+int ans[N];
+void add(int x){
+    int tmp = ct[x]++;
+    hv[tmp]--;
+    hv[tmp + 1]++;
+}
+void del(int x){
+    int tmp = ct[x]--;
+    hv[tmp]--;
+    hv[tmp - 1]++;
+}
+void work(int x){
+    if(l <= chp[x] && chp[x] <= r){
+        del(a[chp[x]]);
+        add(chx[x]);
+    }
+    swap(a[chp[x]], chx[x]);
+}
+int main(){
+    int n, m, t = 0, opt, rr;
+    scanf("%d%d", &n, &m);
+    int block_size = pow(n, 2.0 / 3);
+    for(int i = 1; i <= n; i++){
+        scanf("%d", &rr);
+        if(ma[rr]) a[i] = ma[rr];
+        else{
+            a[i] = ++tot;
+            ma[rr] = tot;
+        }
+        pos[i] = i / block_size + 1;
+    }
+    for(int i = 1; i <= m; i++){
+        scanf("%d%d%d", &opt, &l, &r);
+        if(opt == 1){
+            cnt++;
+            q[cnt] = {l, r, tt, cnt};
+        }
+        else{
+            tt++;
+            chp[tt] = l;
+            if(ma[r]) chx[tt] = ma[r];
+            else{
+                ma[r] = ++tot;
+                chx[tt] = tot;
+            }
+        }
+    }
+    sort(q + 1, q + cnt + 1);
+    l = r = t = 0;
+    hv[0] = 1e9;
+    for(int i = 1; i <= cnt; i++){
+        while(l > q[i].l) add(a[--l]);
+        while(r < q[i].r) add(a[++r]);
+        while(l < q[i].l) del(a[l++]);
+        while(r > q[i].r) del(a[r--]);
+        while(t < q[i].t) work(++t);
+        while(t > q[i].t) work(t--);
+        res = 1;
+        while(hv[res]) res++;
+        ans[q[i].id] = res;
+    }
+    for(int i = 1; i <= cnt; i++) printf("%d\n", ans[i]);
+}\end{lstlisting}
+
+\subsection{回滚莫队}
+\subsubsection{只使用增加操作}
+	\href{https://www.luogu.com.cn/problem/AT1219}{AT1219 歴史の研究} \par
+	求区间 $\max\{v * cnt_v\}$​。
+	\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+#include <cmath>
+#include <algorithm>
+using namespace std;
+const int N = 2E5 + 7;
+long long a[N], b[N];
+int pos[N], block;
+struct QRY{
+    int l, r, id;
+    bool operator<(const QRY &_)const{
+        if(pos[l] != pos[_.l]) return l < _.l;
+        return r < _.r;
+    }
+}qry[N];
+long long ans[N];
+int cnt[N], tcnt[N];
+void add(int x, long long &v){
+    cnt[a[x]]++;
+    v = max(v, cnt[a[x]] * b[a[x]]);
+}
+void del(int x){
+    cnt[a[x]]--;
+}
+int main(){
+    int n, q, l, r;
+    scanf("%d%d", &n, &q);
+    block = sqrt(n);
+    for(int i = 1; i <= n; i++){
+        scanf("%lld", &a[i]);
+        b[i] = a[i];
+        pos[i] = (i - 1) / block + 1;
+    }
+    sort(b + 1, b + n + 1);
+    int nk = unique(b + 1, b + n + 1) - b - 1;
+    for(int i = 1; i <= n; i++) a[i] = lower_bound(b + 1, b + nk + 1, a[i]) - b;
+    for(int i = 1; i <= q; i++){
+        scanf("%d%d", &l , &r);
+        qry[i] = {l, r, i};
+    }
+    sort(qry + 1, qry + q + 1);
+    long long res = 0;
+    l = 1; r = 0; int nb = 0;
+    for(int i = 1; i <= q; i++){
+        if(pos[qry[i].l] == pos[qry[i].r]){
+            long long tmp = 0;
+            for(int j = qry[i].l; j <= qry[i].r; j++){
+                tcnt[a[j]]++;
+                tmp = max(tmp, tcnt[a[j]] * b[a[j]]);
+            }
+            ans[qry[i].id] = tmp;
+            for(int j = qry[i].l; j <= qry[i].r; j++) tcnt[a[j]]--;
+            continue;
+        }
+        if(pos[qry[i].l] != nb){
+            int tl = min(n + 1, pos[qry[i].l] * block + 1);
+            int tr = l - 1;
+            while(l < tl) del(l++);
+            while(r > tr) del(r--);
+            res = 0;
+            nb = pos[qry[i].l];
+        }
+        while(r < qry[i].r) add(++r, res);
+        int ll = l; long long tmp = res;
+        while(ll > qry[i].l) add(--ll, tmp);
+        ans[qry[i].id] = tmp;
+        while(ll < l) del(ll++);
+    }
+    for(int i = 1; i <= q; i++) printf("%lld\n", ans[i]);
+    return 0;
+}\end{lstlisting}
+
+\subsubsection{用栈记录历史修改的写法}
+	给一个序列 $A$，$q$ 次询问，每次询问给一个区间 $[L,R]$， 再给一个 $k$，要求: \par
+	
+
+$$
+\begin{aligned}
+& \sum_{i = 0}^{k - 1}{f(\{A_{l-i}\dots A_{r + i}\}) \times (n + i)^i (\mod P)} \\
+& f(S)=\max\{len|\exists x,\forall u \in \{x,x + 1,\dots,x + len - 1\}, u \in S\}
+\end{aligned}
+$$
+
+	\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+#include <cmath>
+#include <algorithm>
+#include <stack>
+using namespace std;
+const long long mod = 998244353;
+const int N = 1E5 + 7;
+int block;
+int a[N], cnt[N], pos[N];
+struct QRY{
+    int l, r, k, id;
+    bool operator < (const QRY &_)const{
+        if(pos[l] != pos[_.l]) return l < _.l;
+        return r < _.r;
+    }
+}q[N];
+int head[N], tail[N];
+long long pw[N];
+stack<pair<int* , int>> st;
+void clear(int sz){
+    while(st.size() > sz){
+        *st.top().first = st.top().second;
+        st.pop();
+    }
+}
+void upd(int* v, int x){
+    st.push({v, *v});
+    *v = x;
+}
+int res;
+void add(int x){
+    x = a[x];
+    if(cnt[x]) return;
+    upd(&cnt[x], 1);
+    int r = cnt[x + 1] ? tail[x + 1] : x, l = cnt[x - 1] ? head[x - 1] : x;
+    upd(&head[r], l); upd(&tail[l], r);
+    if(r - l + 1 > res) upd(&res, r - l + 1);
+}
+long long ans[N];
+int main(){
+    int n, qq;
+    scanf("%d%d", &n, &qq);
+    block = sqrt(n);
+    for(int i = 1; i <= n; i++){
+        scanf("%d", &a[i]);
+        pos[i] = (i - 1) / block + 1;
+    }
+    pw[0] = 1;
+    for(int i = 1; i <= n; i++) pw[i] = pw[i - 1] * (n + 1) % mod;
+    int l, r, k;
+    for(int i = 1; i <= qq; i++){
+        scanf("%d%d%d", &l, &r, &k);
+        q[i] = {l, r, k, i};
+    }
+    sort(q + 1, q + qq + 1);
+    l = r = 0; int lb = 0;
+    for(auto sq: q){
+        if(pos[sq.l] != lb){
+            r = min(pos[sq.l] * block, n);
+            l = r + 1;
+            lb = pos[sq.l];
+            clear(0);
+        }
+        while(r < sq.r) add(++r);
+        int ts = st.size();
+        for(int j = min(sq.r, l - 1); j >= sq.l; j--) add(j);
+        for(int j = 0; j < sq.k; j++){
+            if(j) add(sq.l - j), add(sq.r + j);
+            ans[sq.id] = (ans[sq.id] + res * pw[j]) % mod;
+        }
+        clear(ts);
+    }
+    for(int i = 1; i <= qq; i++) printf("%lld\n", ans[i]);
+    return 0;
+}\end{lstlisting}
+
+\section{树上莫队}
+	\href{https://www.luogu.com.cn/problem/P4074}{Luogu-P4074 糖果公园} \par
+	给一棵$n$​​个节点的树，每个点有一个值$C_i$​​，每次询问一条路径 $ x \rightarrow y$​​​，求$\sum_cval_c \times \sum_{i = 1}^{cnt_c}{worth_i}(cnt_c = \sum_{i \in (x \rightarrow y)}{[C_i ==c]})$​。带修改。
+	
+\subsection{树上问题转括号序列}
+	\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+using namespace std;
+const int N = 1e5 + 7;
+int vc[N], w[N];
+int id[N * 2], st[N], en[N],cnt;
+int f[N][22], dep[N], lg[N];
+int pos[N * 2];
+long long ans[N];
+int vis[N];
+int c[N];
+struct CHG{
+    int idx, val;
+};
+vector<vector<int> > e;
+vector<CHG> ver;
+void dfs(int x, int fa){
+    id[st[x] = ++cnt] = x;
+    dep[x] = dep[fa] + 1;
+    f[x][0] = fa;
+    for(int i = 1; i <= 20; i++) f[x][i] = f[f[x][i - 1]][i - 1];
+    for(auto v: e[x]){
+        if(v == fa) continue;
+        dfs(v, x);
+    }
+    id[en[x] = ++cnt] = x;
+}
+int lca(int x, int y){
+    if(dep[x] < dep[y]) swap(x, y);
+    while(dep[x] > dep[y]){
+        x = f[x][lg[dep[x] - dep[y]]];
+    }
+    if(x == y) return x;
+    for(int i = 20; i >= 0; i--){
+        if(f[x][i] != f[y][i]){
+            x = f[x][i]; y = f[y][i];
+        }
+    }
+    return f[x][0];
+}
+struct QRY{
+    int l, r, t, id;
+    bool operator<(const QRY &_)const{
+        if(pos[l] != pos[_.l]) return l < _.l;
+        if(pos[r] != pos[_.r]) return r < _.r;
+        return t < _.t;
+    }
+};
+vector<QRY> qry;
+int tv = 0;
+long long res = 0;
+int ct[N];
+void add(int x){
+    if(vis[x]) res -= (long long)vc[c[x]] * w[ct[c[x]]--];
+    else res += (long long)vc[c[x]] * w[++ct[c[x]]];
+    vis[x] ^= 1;
+}
+void work(int x){
+    if(vis[ver[x].idx]){
+        add(ver[x].idx);
+        swap(c[ver[x].idx], ver[x].val);
+        add(ver[x].idx);
+    }
+    else swap(c[ver[x].idx], ver[x].val);
+}
+int main(){
+    int n, m, q, x, y, opt;
+    scanf("%d%d%d", &n, &m, &q);
+    for(int i = 2; i <= n; i++) lg[i] = lg[i >> 1] + 1;
+    e.resize(n + 1);
+    for(int i = 1; i <= m; i++) scanf("%d", &vc[i]);
+    for(int i = 1; i <= n; i++) scanf("%d", &w[i]);
+    for(int i = 1; i < n; i++){
+        scanf("%d%d", &x, &y);
+        e[x].push_back(y);
+        e[y].push_back(x);
+    }
+    for(int i = 1; i <= n; i++) scanf("%d", &c[i]);
+    dfs(1, 0);
+    int blk = pow(cnt, 2.0 / 3);
+    for(int i = 1; i <= cnt; i++) pos[i] = i / blk + 1;
+    ver.push_back({0, 0});
+    for(int i = 1; i <= q; i++){
+        scanf("%d%d%d", &opt, &x, &y);
+        if(opt == 0){
+            tv++;
+            ver.push_back({x, y});
+        }
+        else{
+            if(st[x] > st[y]) swap(x, y);
+            qry.push_back({lca(x, y) == x?st[x]:en[x], st[y], tv, (int)qry.size()});
+        }
+    }
+    sort(qry.begin(), qry.end());
+    int l, r, t;
+    l = r = 0; t = 0;
+    for(auto sq: qry){
+        while(t < sq.t) work(++t);
+        while(t > sq.t) work(t--);
+        while(l > sq.l) add(id[--l]);
+        while(r < sq.r) add(id[++r]);
+        while(l < sq.l) add(id[l++]);
+        while(r > sq.r) add(id[r--]);
+        x = id[sq.l], y = id[sq.r];
+        int llca = lca(x, y);
+        if(x != llca && y != llca){
+            add(llca);
+            ans[sq.id] = res;
+            add(llca);
+        }
+        else ans[sq.id] = res;
+    }
+    for(int i = 0; i < qry.size(); i++) printf("%lld\n", ans[i]);
+}	
+\end{lstlisting}
+
+\subsection{树上分块}
+	\begin{lstlisting}
+#include <iostream>
+#include <cstdio>
+#include <vector>
+#include <stack>
+#include <cmath>
+#include <algorithm>
+using namespace std;
+const int N = 1E5 + 7;
+int val[N], w[N], c[N];
+long long ans[N];
+long long res;
+vector<vector<int> > e;
+stack<int> st;
+int block_size, blk;
+int dep[N], sze[N], bc[N], bl[N], f[N];
+void dfs1(int x, int fa){
+    dep[x] = dep[fa] + 1;
+    f[x] = fa;
+    sze[x] = 1;
+    int ss = st.size();
+    for(auto v: e[x]){
+        if(v == fa) continue;
+        dfs1(v, x);
+        if(sze[bc[x]] < sze[v]) bc[x] = v;
+        sze[x] += sze[v];
+        if(st.size() >= ss + block_size){
+            blk++;
+            while(st.size() != ss){
+                bl[st.top()] = blk;
+                st.pop();
+            }
+        }
+    }
+    st.push(x);
+}
+int id[N], top[N], cnt;
+void dfs2(int x, int rt){
+    id[x] = ++cnt;
+    top[x] = rt;
+    if(bc[x]) dfs2(bc[x], rt);
+    for(auto v: e[x]){
+        if(v == f[x] || v == bc[x]) continue;
+        dfs2(v, v);
+    }
+}
+int lca(int x, int y){
+    while(top[x] != top[y]){
+        if(dep[top[x]] < dep[top[y]]) swap(x, y);
+        x = f[top[x]];
+    }
+    return dep[x] < dep[y] ? x : y;
+}
+struct VT{
+    int x, y;
+};
+vector<VT> ve;
+struct QRY{
+    int x, y, t, id;
+    bool operator<(const QRY &r)const{
+        if(bl[x] != bl[r.x]) return bl[x] < bl[r.x];
+        if(bl[y] != bl[r.y]) return bl[y] < bl[r.y];
+        return t < r.t;
+    }
+};
+vector<QRY> qry;
+bool vis[N];
+int ct[N];
+void update(int x){
+    if(vis[x]) res -= (long long)w[ct[c[x]]--] * val[c[x]];
+    else res += (long long)w[++ct[c[x]]] * val[c[x]];
+    vis[x] ^= 1;
+}
+void move(int x, int y){
+    if(dep[x] < dep[y]) swap(x, y);
+    while(dep[x] > dep[y]){
+        update(x);
+        x = f[x];
+    }
+    while(x != y){
+        update(x); update(y);
+        x = f[x]; y = f[y];
+    }
+}
+void make(int t){
+    if(vis[ve[t].x]){
+        update(ve[t].x);
+        swap(ve[t].y, c[ve[t].x]);
+        update(ve[t].x);
+    }
+    else swap(ve[t].y, c[ve[t].x]);
+}
+int main(){
+    int n, m, q, u, v;
+    scanf("%d%d%d", &n, &m, &q);
+    e.resize(n + 1);
+    block_size = (int)pow(n, 0.6);
+    for(int i = 1; i <= m; i++) scanf("%d", &val[i]);
+    for(int i = 1; i <= n; i++) scanf("%d", &w[i]);
+    for(int i = 1; i < n; i++){
+        scanf("%d%d", &u, &v);
+        e[u].push_back(v); e[v].push_back(u);
+    }
+    for(int i = 1; i <= n; i++) scanf("%d", &c[i]);
+    dfs1(1, 1);
+    while(!st.empty()){
+        blk++;
+        bl[st.top()] = blk;
+        st.pop();
+    }
+    dfs2(1, 1);
+    int opt, x, y;
+    int ver = 0;
+    ve.push_back({0, 0});
+    for(int i = 1; i <= q; i++){
+        scanf("%d%d%d", &opt, &x, &y);
+        if(opt == 0){
+            ver++; ve.push_back({x, y});
+        }
+        else{
+            if(id[x] > id[y]) swap(x , y);
+            qry.push_back({x, y, ver, (int)qry.size()});
+        }
+    }
+    sort(qry.begin(), qry.end());
+    x = 1, y = 1; int t = 0;
+    for(int i = 0; i < qry.size(); i++){
+        if(x != qry[i].x) move(x, qry[i].x), x = qry[i].x;
+        if(y != qry[i].y) move(y, qry[i].y), y = qry[i].y;
+        int llca = lca(x, y);
+        update(llca);
+        while(t < qry[i].t) make(++t);
+        while(t > qry[i].t) make(t--);
+        ans[qry[i].id] = res;
+        update(llca);
+    }
+    for(int i = 0; i < qry.size(); i++) printf("%lld\n", ans[i]);
+    return 0;
+}\end{lstlisting}
