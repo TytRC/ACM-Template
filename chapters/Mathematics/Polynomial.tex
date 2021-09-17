@@ -120,15 +120,17 @@ inline void ntt(int a[],int len,int inv){
 \end{lstlisting}
 
 \subsection{多项式全家桶}
-qaq全能吧应该是
+多项式除法|余数、求逆、exp、ln、开方
 \begin{lstlisting}
+
 #include<bits/stdc++.h>
 using namespace std;
-const int MAXN = 1 << 22;
+
 typedef long long ll;
 const ll g = 3, gi = 332748118;
 const ll mod = 998244353;
-int rev[MAXN];
+
+typedef vector<ll> Poly;
 
 ll fastpow(ll a, ll b) {
 	ll res = 1;
@@ -138,7 +140,8 @@ ll fastpow(ll a, ll b) {
 	}
 	return res % mod;
 }
-void change(ll a[], int len) {
+void change(Poly & a, int len) {
+	vector<int> rev(len);
 	for(int i = 0; i < len; i++) {
 		rev[i] = rev[i >> 1] >> 1;
 		if(i & 1) {
@@ -147,7 +150,7 @@ void change(ll a[], int len) {
 	}
 	for(int i = 0; i < len; i++) if(i > rev[i]) swap(a[i], a[rev[i]]);
 }
-void NTT(ll a[], int len, int on) {
+void NTT(Poly & a, int len, int on) {
 	change(a, len);
 	for(int l = 2; l <= len; l <<= 1) {
 		ll step = fastpow(on == 1 ? g : gi, (mod - 1) / l);
@@ -164,179 +167,132 @@ void NTT(ll a[], int len, int on) {
 	if(on == -1) for(int i = 0; i < len; i++) a[i] = a[i] * inv % mod;
 }
 
-const double PI = acos(-1);
-struct Complex {
-	double x, y;
-	Complex(double _x = 0.0, double _y = 0.0) : x(_x), y(_y){
-	}
-	Complex operator + (const Complex  & rhs) const{ return Complex(x + rhs.x, y + rhs.y);}
-	Complex operator - (const Complex  & rhs) const{ return Complex(x - rhs.x, y - rhs.y);}
-	Complex operator * (const Complex  & rhs) const{ return Complex(x * rhs.x - y * rhs.y, y * rhs.x + x * rhs.y);}
-};
-void change(Complex a[], int len) {
-	for(int i = 0; i < len; i++) {
-		rev[i] = rev[i >> 1] >> 1;
-		if(i & 1) {
-			rev[i] |= len >> 1;
-		}
-	}
-	for(int i = 0; i < len; i++) if(i > rev[i]) swap(a[i], a[rev[i]]);
-}
-void FFT(Complex a[], int len, int on) {
-	change(a, len);
-	for(int l = 2; l <= len; l <<= 1) {
-		Complex step = Complex(cos(2.0 * PI / l), sin( on * 2.0 * PI / l));
-		for(int i = 0; i < len; i += l) {
-			Complex w = Complex(1, 0);
-			for(int j = i; j < i + l / 2; j++) {
-				Complex g = a[j], h = w * a[j + l / 2];
-				a[j] = g + h; a[j + l / 2] = g - h;
-				w = w * step;
-			}
-		}
-	}
-	if(on == -1) for(int i = 0; i < len; i++) a[i].x /= len;
+Poly Mul(Poly a, Poly b) {	//多项式乘法
+	int n = int(a.size()), m = int(b.size());
+	int limit = 1;
+	while(limit < m + n) limit <<= 1;
+	a.resize(limit), b.resize(limit);
+	NTT(a, limit, 1); NTT(b, limit, 1);
+	for(int i = 0; i < limit; i++) a[i] = a[i] * b[i];
+	NTT(a, limit, -1);
+	a.resize(n + m - 1);
+	return a;
 }
 
-void FWT_or(ll a[], int n, int type) {
-	for(int l = 2, k = 1; l <= 1 << n; l <<= 1, k <<= 1) {
-		for(int i = 0; i < 1 << n; i += l) {
-			for(int j = 0; j < k; j++) {
-				a[i + j + k] = (a[i + j] * type + a[i + j + k] + mod) % mod;
-			}
-		}
-	}
-}
-void FWT_and(ll a[], int n, int type) {
-	for(int l = 2, k = 1; l <= 1 << n; l <<= 1, k <<= 1) {
-		for(int i = 0; i < 1 << n; i += l) {
-			for(int j = 0; j < k; j++) {
-				a[i + j] = (a[i + j] + type * a[i + j + k] + mod) % mod;
-			}
-		}
-	}
-}
-void FWT(ll a[], int n, int type) {
-	ll inv = fastpow(2, mod - 2);
-	for(int l = 2, k = 1; l <= 1 << n; l <<= 1, k <<= 1) {
-		for(int i = 0; i < 1 << n; i += l) {
-			for(int j = 0; j < k; j++) {
-				ll g = a[i + j], h = a[i + j + k];
-				a[i + j] = (g  + h) % mod;
-				a[i + j + k] = (g - h + mod) % mod;
-				if(type == -1) {
-					a[i + j] = a[i + j] * inv % mod;
-					a[i + j + k]  = a[i + j + k] * inv % mod;
-				}
-			}
-		}
-	}
-}
 
-int limit;
-ll Buffer[MAXN], Inv[MAXN], Der[MAXN], Ln[MAXN], Exp[MAXN], Int[MAXN];
-void polyinv(ll h[], int n, ll f[]) {
-	if(n == 1) {
-		f[0] = fastpow(h[0], mod - 2);
-		return;
+Poly Inv(Poly a, int len) {	//多项式求逆 输入A(x) 返回 1 / A(x) mod  (x ^ len)
+	a.resize(len);
+	if(len == 1) {
+		a[0] = fastpow(a[0], mod - 2);
+		return a;
 	}
-	polyinv(h, (n + 1) >> 1, f);
-	for(limit = 1; limit <= n + n; limit <<= 1);
-	copy(h, h + n, Buffer);
-	fill(Buffer + n, Buffer + limit, 0);
-	NTT(Buffer, limit, 1); NTT(f, limit, 1);
+	Poly g = Inv(a, (len + 1) >> 1);
+	int limit = 1;
+	while(limit < (len << 1)) limit <<= 1;
+	g.resize(limit);
+	a.resize(limit);
+	NTT(g, limit, 1);
+	NTT(a, limit, 1);
 	for(int i = 0; i < limit; i++) {
-		f[i] = f[i] * ((2 - f[i] * Buffer[i] % mod + mod) % mod) % mod;
+		a[i] = (2 - g[i] * a[i] % mod + mod) % mod * g[i];
 	}
-	NTT(f, limit, -1);
-	fill(f + n, f + limit, 0);
+	NTT(a, limit, -1);
+	a.resize(len);
+	return a;
 }
 
-void polydiv(ll f[], ll g[], int n, int m, ll q[], ll r[]) {
-	fill(Inv, Inv + (max(n, m) << 2), 0);
-	for(int i = 0; i <= n / 2; i++) {
-		swap(f[i], f[n - i]);
+Poly Sqrt(Poly a, int len) { // 多项式开方 输入A(x) 返回 sqrt(A(x)) mod (x ^ len)
+	a.resize(len);
+	if(len == 1) {
+		a[0] = 1;
+		return a;
 	}
-	for(int i = 0; i <= m / 2; i++) {
-		swap(g[i], g[m - i]);
+	Poly g = Sqrt(a, (len + 1) >> 1);
+	Poly h = Inv(g, len);
+	int limit = 1;
+	while(limit < (len << 1)) limit <<= 1;
+	g.resize(limit); a.resize(limit), h.resize(limit);
+	NTT(g, limit, 1); NTT(a, limit, 1); NTT(h, limit, 1);
+	for(int i = 0; i < limit; i++) a[i] = (g[i] * g[i] % mod + a[i]) % mod * (mod + 1) / 2 % mod * h[i] % mod;
+	NTT(a, limit, -1);
+	a.resize(len);
+	return a;
+}
+
+Poly Der(Poly a, int len) {	//多项式求导
+	a.resize(len);
+	for(int i = 0; i < len - 1; i++) {
+		a[i] = (i + 1) * a[i + 1];
 	}
-	polyinv(g, n - m + 1, Inv);
-	for(limit = 1; limit <= n * 2 - m + 2; limit <<= 1);
-	NTT(Inv, limit, 1); NTT(f, limit, 1);
-	for(int i = 0; i < limit; i++) {
-		q[i] = Inv[i] * f[i] % mod;
+	a.resize(len - 1);
+	return a;
+}
+
+Poly Int(Poly a, int len) {	//多项式积分
+	
+	a.resize(len);
+	for(int i = len - 1; i > 0; i--) {
+		a[i] = a[i - 1] * fastpow(i, mod - 2) % mod;
 	}
-	NTT(q, limit, -1);
-	NTT(f, limit, -1);
-	for(int i = 0; i <= (n - m) / 2; i++) swap(q[i], q[n - m - i]);
-	fill(q + n - m + 1, q + limit, 0);
-	for(int i = 0; i <= n / 2; i++) {
-		swap(f[i], f[n - i]);
+	a[0] = 0;
+	return a;
+}
+
+Poly Ln(Poly a, int len) {	//多项式ln 输入A(x) 返回 Ln A(x) mod (x ^ len)
+	Poly d = Der(a, len), g = Inv(a, len);
+	return Int(Mul(d, g), len);
+}
+
+Poly Exp(Poly a, int len) {	//多项式exp 输入A(x) 返回 e^A(x) mod (x ^ len)
+	a.resize(len);
+	if(len == 1) {
+		a[0] = 1;
+		return a;
 	}
-	for(int i = 0; i <= m / 2; i++) {
-		swap(g[i], g[m - i]);
-	}
+	Poly g = Exp(a, (len + 1) >> 1);
+	Poly l = Ln(g, len);
+	int limit = 1;
+	while(limit < (len << 1)) limit <<= 1;
+	g.resize(limit); l.resize(limit); a.resize(limit);
+	NTT(a, limit, 1); NTT(l, limit, 1); NTT(g, limit, 1);
+	for(int i = 0; i < limit; i++) a[i] = (1 - l[i] + a[i] + mod) % mod * g[i];
+	NTT(a, limit, -1);
+	a.resize(len);
+	return a;
+}
+
+pair<Poly, Poly> Div(Poly f, Poly g) {	//多项式除法 输入Q(x) F(x) = Q(x)G(x) + R(x) 返回 {Q(x), R(x)}
+	
+	int n = f.size() - 1, m = g.size() - 1;		
+	reverse(f.begin(), f.end()); reverse(g.begin(), g.end());
+	
+	Poly inv = Inv(g, f.size() - g.size() + 1);
+	Poly q = Mul(f, inv);
+	q.resize(n - m + 1);
+	reverse(q.begin(), q.end()); reverse(f.begin(), f.end()); reverse(g.begin(), g.end());
+	
+	int limit = 1;
 	for(limit = 1; limit <= n; limit <<= 1);
+	
+	f.resize(limit); g.resize(limit); q.resize(limit);
 	NTT(f, limit, 1); NTT(g, limit, 1); NTT(q, limit, 1);
+	
+	Poly r(limit);
+	
 	for(int i = 0; i < limit; i++) {
 		r[i] = (f[i] - q[i] * g[i] % mod + mod) % mod;
 	}
-	NTT(r, limit, -1);
-	NTT(q, limit, -1);
+	
+	NTT(r, limit, -1); NTT(q, limit, -1);
+	
+	r.resize(m);
+	q.resize(n - m + 1);
+	return {q, r};
 }
 
-void polyder(ll h[], int n, ll f[]) {
-	fill(f, f + n, 0);
-	for(int i = 1; i < n; i++) {
-		f[i - 1] = h[i] * (ll) i % mod;
-	}
-	f[n - 1] = 0;
-}
-
-void polyint(ll h[], int n, ll f[]) {
-	fill(f, f + n + 1, 0);
-	for(int i = 1; i < n; i++) {
-		f[i] = h[i - 1] * fastpow((ll)i, mod - 2) % mod;
-	}
-	f[0] = 0;
-}
-void polyln(ll h[], int n, ll f[]) {
-	fill(f, f + (n << 2), 0);
-	fill(Inv, Inv + (n << 2), 0);
-	fill(Der, Der + (n << 2), 0);
-	polyinv(h, n, Inv);
-	polyder(h, n, Der);
-	for(limit = 1; limit <= n * 2; limit <<= 1);
-	fill(Inv + n, Inv + limit, 0); fill(Der + n, Der + limit, 0);
-	NTT(Inv, limit, 1); NTT(Der, limit, 1);
-	for(int i = 0; i < limit; i++) {
-		Der[i] = Der[i] * Inv[i] % mod;
-	}
-	NTT(Der, limit, -1);
-	fill(Der + n, Der + limit, 0);
-	polyint(Der, n, f);	
-}
-void polyexp(ll h[], int n, ll f[]) {
-	if(n == 1) {
-		f[0] = 1;
-		return;
-	}
-	polyexp(h, (n + 1) >> 1, f);
-	fill(Ln, Ln + (n << 2), 0);
-	polyln(f, n, Ln);
-	for(limit = 1; limit <= n + n; limit <<= 1);
-	copy(h, h + n, Buffer);
-	fill(Buffer + n, Buffer + limit, 0);
-	NTT(Ln, limit, 1); NTT(Buffer, limit, 1); NTT(f, limit, 1);
-	for(int i = 0; i < limit; i++) {
-		f[i] = f[i] * ((1 - Ln[i] + Buffer[i] + mod) % mod) % mod;
-	}
-	NTT(f, limit, -1);
-	fill(f + n, f + limit, 0);
-}
-int n, m; 
-ll A[MAXN], B[MAXN], C[MAXN], D[MAXN], E[MAXN];
 int main() {
+	
 	return 0;
 }
+
 \end{lstlisting}
