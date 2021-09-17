@@ -1,0 +1,187 @@
+\section{BST}
+\subsection{splay}
+\subsection{求树中两点异或和等于其LCA的点对个数}
+
+\begin{lstlisting}
+	#include <iostream>
+	#include <cstdio>
+	#include <vector>
+	#include <map>
+	#include <set>
+	using namespace std;
+	const int N = 1e5 + 7;
+	int a[N];
+	vector<vector<int> > e;
+	int sz[N], bc[N];
+	int cnt[N * 10][21][2];
+	int son = 0;
+	long long ans = 0;
+	void dfs1(int x, int fa){
+		sz[x] = 1;
+		for(auto v: e[x]){
+			if(v == fa) continue;
+			dfs1(v, x);
+			sz[x] += sz[v];
+			if(sz[v] > sz[bc[x]]) bc[x] = v;
+		}
+	}
+	void update(int x, int fa, int val){
+		int o = a[x] ^ val;
+		if(o <= 1e6){
+			for(int i = 0; i <= 20; i++){
+				ans += (long long)cnt[o][i][!((x >> i) & 1)] * (1 << i);
+			}
+		}
+		for(auto v: e[x]){
+			if(v == fa) continue;
+			update(v, x, val);
+		}
+	}
+	void add(int x, int fa, int val){
+		for(int i = 0; i <= 20; i++){
+			cnt[a[x]][i][(x >> i) & 1] += val;
+		}
+		for(auto v: e[x]){
+			if(v == fa) continue;
+			add(v, x, val);
+		}
+	}
+	void dfs2(int x, int fa, bool keep){
+		for(auto v: e[x]){
+			if(v == fa || v == bc[x]) continue;
+			dfs2(v, x, 0);
+		}
+		if(bc[x]){
+			dfs2(bc[x], x, 1);
+			son = bc[x];
+		}
+		for(auto v: e[x]){
+			if(v == fa || v == bc[x]) continue;
+			update(v, x, a[x]);
+			add(v, x, 1);
+		}
+		for(int i = 0; i <= 20; i++){
+			cnt[a[x]][i][(x >> i) & 1] += 1;
+		}
+		son = 0;
+		if(!keep){
+			add(x, fa, -1);
+		}
+	}
+	int main(){
+		int n, u, v;
+		scanf("%d", &n);
+		e.resize(n + 1);
+		for(int i = 1; i <= n; i++){
+			scanf("%d", &a[i]);
+		}
+		for(int i = 1; i < n; i++){
+			scanf("%d%d", &u, &v);
+			e[u].emplace_back(v);
+			e[v].emplace_back(u);
+		}
+		dfs1(1, 0);
+		dfs2(1, 0, 0);
+		printf("%lld\n", ans);
+		return 0;
+	}
+\end{lstlisting}
+
+\subsection{求满足以下条件的点对(x, y)个数}
+\begin{itemize}
+	\item $x \neq y$
+	\item $LCA(x, y) \neq x, LCA(x, y) \neq y$
+	\item $x, y$ 距离不超过 $k$ 
+	\item $v_x + v_y = 2v_{LCA(x,y)}$
+\end{itemize}
+\begin{lstlisting}
+	#include <iostream>
+	#include <cstdio>
+	#include <vector>
+	using namespace std;
+	const int N = 1e5 + 7;
+	vector<vector<int> > e;
+	int n, k;
+	int w[N];
+	int cnt;
+	int rt[N];
+	struct NODE{
+		int ls, rs, sum;
+	}t[N * 40];
+	int dep[N], sze[N], bc[N];
+	long long ans = 0;
+	void pre(int x, int fa){
+		dep[x] = dep[fa] + 1;
+		sze[x] = 1;
+		for(auto v: e[x]){
+			pre(v, x);
+			if(sze[v] > sze[bc[x]]) bc[x] = v;
+			sze[x] += sze[v];
+		}
+	}
+	void update(int &o, int l, int r, int x, int val){
+		if(o == 0) o = ++cnt;
+		t[o].sum += val;
+		if(l == r) return;
+		int mid = (l + r) >> 1;
+		if(x <= mid) update(t[o].ls, l, mid, x, val);
+		else update(t[o].rs, mid + 1, r, x, val);
+	}
+	int query(int o, int l, int r, int ql, int qr){
+		if(o == 0) return 0;
+		if(qr < l || ql > r) return 0;
+		if(ql <= l && r <= qr) return t[o].sum;
+		int mid = (l + r) >> 1;
+		int res = 0;
+		if(ql <= mid) res += query(t[o].ls, l, mid, ql, qr);
+		if(qr > mid) res += query(t[o].rs, mid + 1, r, ql, qr);
+		return res;
+	}
+	void cal(int x, int fa, int f){
+		int r = w[f] * 2 - w[x];
+		if(r <= n){
+			ans += query(rt[r], 1, n, dep[f] + 1, min(n, k - (dep[x] - 2 * dep[f])));
+		}
+		for(auto v: e[x]){
+			cal(v, x, f);
+		}
+	}
+	void add(int x, int fa, int val){
+		update(rt[w[x]], 1, n, dep[x], val);
+		for(auto v: e[x]){
+			add(v, x, val);
+		}
+	}
+	void dfs(int x, int fa, bool keep){
+		for(auto v: e[x]){
+			if(v == bc[x]) continue;
+			dfs(v, x, 0);
+		}
+		if(bc[x]) dfs(bc[x], x, 1);
+		for(auto v: e[x]){
+			if(v == bc[x]) continue;
+			cal(v, x, x);
+			add(v, x, 1);
+		}
+		update(rt[w[x]], 1, n, dep[x], 1);
+		if(!keep){
+			add(x, fa, -1);
+		}
+	}
+	int main(){
+		int u, v;
+		scanf("%d%d", &n, &k);
+		e.resize(n + 1);
+		for(int i = 1; i <= n; i++){
+			scanf("%d", &w[i]);
+		}
+		for(int i = 2; i <= n; i++){
+			scanf("%d", &u);
+			e[u].emplace_back(i);
+		}
+		pre(1, 0);
+		dfs(1, 0, 1);
+		printf("%lld\n", ans * 2);
+		return 0;
+	}
+\end{lstlisting}
